@@ -1,26 +1,34 @@
+from collections.abc import Callable
 from wiki_api import get_outgoing_links, get_backlinks
 
 MAX_DEPTH = 3
 
 
-def find_chain(start, end):
+def find_chain(
+    start: str,
+    end: str,
+    on_progress: Callable[[str], None] | None = None,
+) -> list[str] | None:
     """Find a chain of Wikipedia articles from start to end using
     bidirectional iterative deepening search.
 
     Returns a list of article titles, or None if no chain is found
-    within the depth limit."""
+    within the depth limit. Calls on_progress with status updates
+    at each depth iteration.
+    """
     if start == end:
         return [start]
 
-    # visited maps title -> path from origin
-    forward_visited = {start: [start]}
-    backward_visited = {end: [end]}
+    forward_visited: dict[str, list[str]] = {start: [start]}
+    backward_visited: dict[str, list[str]] = {end: [end]}
 
-    # Cache of link results to avoid redundant API calls
-    forward_links_cache = {}
-    backward_links_cache = {}
+    forward_links_cache: dict[str, list[str]] = {}
+    backward_links_cache: dict[str, list[str]] = {}
 
     for depth in range(1, MAX_DEPTH + 1):
+        if on_progress:
+            on_progress(f"Searching depth {depth}...")
+
         _dfs(start, depth, 0, [start], forward_visited,
              forward_links_cache, get_outgoing_links)
         _dfs(end, depth, 0, [end], backward_visited,
@@ -28,7 +36,7 @@ def find_chain(start, end):
 
         meeting = set(forward_visited.keys()) & set(backward_visited.keys())
         if meeting:
-            best_chain = None
+            best_chain: list[str] | None = None
             for node in meeting:
                 fwd_path = forward_visited[node]
                 bwd_path = backward_visited[node]
@@ -40,12 +48,19 @@ def find_chain(start, end):
     return None
 
 
-def _dfs(title, max_depth, current_depth, path, visited, links_cache, get_links_fn):
+def _dfs(
+    title: str,
+    max_depth: int,
+    current_depth: int,
+    path: list[str],
+    visited: dict[str, list[str]],
+    links_cache: dict[str, list[str]],
+    get_links_fn: Callable[[str], list[str]],
+) -> None:
     """Depth-limited DFS. Expands nodes and records paths in visited dict."""
     if current_depth >= max_depth:
         return
 
-    # Fetch links, using cache to avoid repeated API calls
     if title in links_cache:
         links = links_cache[title]
     else:

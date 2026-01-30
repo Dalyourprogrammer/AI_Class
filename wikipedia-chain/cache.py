@@ -7,7 +7,8 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache.db")
 TTL = timedelta(days=1)
 
 
-def _get_conn():
+def _get_conn() -> sqlite3.Connection:
+    """Open a connection to the cache database, creating the table if needed."""
     conn = sqlite3.connect(DB_PATH)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS link_cache (
@@ -21,7 +22,8 @@ def _get_conn():
     return conn
 
 
-def get_cached_links(title, link_type):
+def get_cached_links(title: str, link_type: str) -> list[str] | None:
+    """Retrieve cached links for an article. Returns None on miss or expiry."""
     conn = _get_conn()
     try:
         row = conn.execute(
@@ -43,7 +45,8 @@ def get_cached_links(title, link_type):
         conn.close()
 
 
-def set_cached_links(title, link_type, links):
+def set_cached_links(title: str, link_type: str, links: list[str]) -> None:
+    """Store links for an article in the cache."""
     conn = _get_conn()
     try:
         conn.execute(
@@ -55,7 +58,8 @@ def set_cached_links(title, link_type, links):
         conn.close()
 
 
-def clear_cache():
+def clear_cache() -> None:
+    """Delete all cached link data."""
     conn = _get_conn()
     try:
         conn.execute("DELETE FROM link_cache")

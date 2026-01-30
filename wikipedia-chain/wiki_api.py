@@ -1,6 +1,5 @@
 import time
 import requests
-from urllib.parse import quote
 from cache import get_cached_links, set_cached_links
 
 BASE_URL = "https://en.wikipedia.org/w/api.php"
@@ -10,7 +9,7 @@ SESSION = requests.Session()
 SESSION.headers.update({"User-Agent": USER_AGENT})
 
 
-def _api_get(params, max_retries=3):
+def _api_get(params: dict, max_retries: int = 3) -> dict:
     """Make a GET request to the Wikimedia API with retry on failure."""
     for attempt in range(max_retries):
         resp = SESSION.get(BASE_URL, params=params)
@@ -23,9 +22,11 @@ def _api_get(params, max_retries=3):
                 raise
 
 
-def validate_article(title):
-    """Validate that a Wikipedia article exists. Resolves redirects.
-    Returns the canonical title, or None if the article does not exist."""
+def validate_article(title: str) -> str | None:
+    """Validate that a Wikipedia article exists and resolve redirects.
+
+    Returns the canonical title, or None if the article does not exist.
+    """
     params = {
         "action": "query",
         "titles": title,
@@ -40,13 +41,16 @@ def validate_article(title):
     return pages[page_id]["title"]
 
 
-def get_outgoing_links(title):
-    """Get all outgoing article links (namespace 0) from a Wikipedia page."""
+def get_outgoing_links(title: str) -> list[str]:
+    """Get all outgoing article links (namespace 0) from a Wikipedia page.
+
+    Results are cached in SQLite. Handles API pagination automatically.
+    """
     cached = get_cached_links(title, "outgoing")
     if cached is not None:
         return cached
 
-    links = []
+    links: list[str] = []
     params = {
         "action": "query",
         "titles": title,
@@ -70,13 +74,16 @@ def get_outgoing_links(title):
     return links
 
 
-def get_backlinks(title):
-    """Get all pages that link to the given Wikipedia page (namespace 0)."""
+def get_backlinks(title: str) -> list[str]:
+    """Get all pages that link to the given Wikipedia page (namespace 0).
+
+    Results are cached in SQLite. Handles API pagination automatically.
+    """
     cached = get_cached_links(title, "backlinks")
     if cached is not None:
         return cached
 
-    links = []
+    links: list[str] = []
     params = {
         "action": "query",
         "list": "backlinks",

@@ -2,7 +2,15 @@
 
 ## Overview
 
-A web application that finds chains of linked Wikipedia articles between two given articles using bidirectional iterative deepening search.
+A web app that finds the shortest path of links between two Wikipedia articles using bidirectional search. Flask backend with vanilla JS frontend.
+
+## Core Requirements
+
+- User enters start/end article titles, app finds the shortest link path connecting them.
+- Maximum search depth: 7 articles (6 hops), corresponding to max depth 3 per side.
+- Uses Wikipedia MediaWiki API (no local database for article data).
+- Only mainspace articles (namespace 0) — no `File:`, `Wikipedia:`, `Help:`, etc.
+- Bidirectional iterative deepening search algorithm.
 
 ## Project Structure
 
@@ -20,11 +28,21 @@ wikipedia-chain/
     └── script.js
 ```
 
+## Coding Standards
+
+- Keep dependencies minimal (`flask`, `requests` only).
+- No classes where simple functions suffice.
+- Type hints on all function signatures.
+- Docstrings on public functions.
+- Handle Wikipedia API pagination (continuation tokens).
+- Include reasonable error handling for API failures.
+- Set a polite `User-Agent` header for Wikipedia requests.
+
 ## Backend (Python Flask)
 
-### API Endpoint
+### API Endpoints
 
-**`POST /api/find-chain`**
+**`POST /api/search`** — Start a search job.
 
 Request body:
 ```json
@@ -34,7 +52,39 @@ Request body:
 }
 ```
 
-**Success response:**
+Response (job created):
+```json
+{
+  "status": "ok",
+  "job_id": "abc123"
+}
+```
+
+Error response (invalid input):
+```json
+{
+  "status": "error",
+  "message": "Article 'Xyzzy' not found on Wikipedia."
+}
+```
+
+Input validation happens synchronously before creating the job:
+1. Both `start` and `end` fields must be non-empty.
+2. Validate that both articles exist using the Wikimedia API.
+3. Resolve redirects using `&redirects=1` and return canonical titles.
+4. If start == end after redirect resolution, return the result immediately without creating a background job.
+
+**`GET /api/search/<job_id>`** — Poll job status.
+
+While searching:
+```json
+{
+  "status": "searching",
+  "progress": "Searching depth 2..."
+}
+```
+
+On success:
 ```json
 {
   "status": "found",
@@ -46,7 +96,7 @@ Request body:
 }
 ```
 
-**Not found response** (no chain within depth limit):
+Not found (search exhausted depth limit):
 ```json
 {
   "status": "not_found",
@@ -54,19 +104,27 @@ Request body:
 }
 ```
 
-**Error response** (invalid input, API failure, timeout):
+Error (search failed):
 ```json
 {
   "status": "error",
-  "message": "Article 'Xyzzy' not found on Wikipedia."
+  "message": "Search error: ..."
+}
+```
+
+Invalid job ID:
+```json
+{
+  "status": "error",
+  "message": "Job not found."
 }
 ```
 
 URLs are constructed deterministically: `https://en.wikipedia.org/wiki/` + URL-encoded title.
 
-**`DELETE /api/cache`**
+**`DELETE /api/cache`** — Clear link cache.
 
-Clears all cached link data. Response:
+Response:
 ```json
 {
   "status": "ok",
@@ -78,21 +136,22 @@ Clears all cached link data. Response:
 
 Flask serves `static/index.html` at the root route (`GET /`).
 
-### Input Validation
+### Job Management
 
-Before starting the search:
-
-1. Validate that both articles exist using the Wikimedia API.
-2. Resolve redirects using `&redirects=1` and return the canonical title. For example, if the user types "USA", resolve it to "United States".
-3. Handle the trivial case where start == end (after redirect resolution): return a chain of one article immediately.
+- Jobs are stored in a module-level dictionary: `dict[str, dict]` mapping job ID to job state.
+- Job IDs are generated using `uuid.uuid4().hex` (or similar).
+- Each job runs in a background thread.
+- Job state includes: `status`, `progress`, `result` (chain or error), and `start`/`end` titles.
+- The search function should accept a callback or update a shared state object so that progress (current depth) can be reported to the polling endpoint.
+- No automatic cleanup of old jobs is required for the first version. Jobs persist in memory until the server restarts.
 
 ### Server-Side Timeout
 
-Set a timeout of 60 seconds. If the search has not completed, return an error response rather than hanging.
+Set a timeout of 60 seconds per job. If the search has not completed, mark the job as errored with a timeout message.
 
 ## Wikimedia API Client (`wiki_api.py`)
 
-All requests must include a descriptive `User-Agent` header as required by Wikimedia policy.
+All requests must include a descriptive `User-Agent` header as required by Wikimedia policy. Include retry logic for transient failures (non-JSON responses).
 
 ### Validate Article
 
@@ -143,6 +202,10 @@ Depth 3: Forward DFS to depth 3, Backward DFS to depth 3 → check intersection
 ```
 
 If no intersection is found after depth 3 on both sides, return not found.
+
+### Progress Reporting
+
+The `find_chain` function accepts a progress callback. At the start of each depth iteration, it calls the callback with a progress string (e.g., `"Searching depth 2..."`). This allows the app layer to update the job state for polling.
 
 ### Data Structures
 
@@ -195,11 +258,11 @@ CREATE TABLE IF NOT EXISTS link_cache (
 
 #### Integration
 
-The caching logic lives in a new module `cache.py`. The `wiki_api.py` module imports from `cache.py` and wraps `get_outgoing_links()` and `get_backlinks()` to check/populate the cache transparently. The rest of the codebase (search, app) requires no changes.
+The caching logic lives in `cache.py`. The `wiki_api.py` module imports from `cache.py` and wraps `get_outgoing_links()` and `get_backlinks()` to check/populate the cache transparently. The rest of the codebase (search, app) requires no changes.
 
 ### Single-Threaded
 
-The search runs in a single thread. No parallel expansion.
+Each search job runs in a single background thread. No parallel expansion within a search.
 
 ## Frontend (`static/`)
 
@@ -213,17 +276,18 @@ The search runs in a single thread. No parallel expansion.
 
 ### Behavior (`script.js`)
 
-- On submit, send a `POST` request to `/api/find-chain` with the two titles as JSON.
-- While the request is in flight:
-  - Disable the submit button and inputs.
-  - Show a loading indicator (spinner or "Searching..." text).
-- On success (`status: "found"`):
-  - Display the chain as a sequence of clickable links (using the URLs from the response), connected by arrows or a similar visual separator.
-- On not found (`status: "not_found"`):
-  - Display the message from the response.
-- On error (`status: "error"`):
-  - Display the error message from the response.
-- Set a generous `fetch` timeout to match the server-side timeout.
+- On submit:
+  - Prevent default form submission.
+  - Disable inputs and button; show a loading indicator in the result area.
+  - Send `POST /api/search` with the two titles as JSON.
+  - If the POST returns an error, display it and re-enable inputs.
+  - If the POST returns a `job_id`, begin polling `GET /api/search/<job_id>` every 1–2 seconds.
+- While polling:
+  - If status is `"searching"`, update the loading indicator with the progress message.
+  - If status is `"found"`, stop polling and render the chain as clickable links with arrows.
+  - If status is `"not_found"`, stop polling and display the message.
+  - If status is `"error"`, stop polling and display the error message.
+  - Re-enable inputs and button when polling stops.
 - Use vanilla JavaScript. No frameworks or libraries.
 
 ## Dependencies (`requirements.txt`)

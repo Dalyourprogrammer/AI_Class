@@ -15,14 +15,16 @@
 ## Step 2: Implement the Wikimedia API client (`wiki_api.py`)
 
 - Set a descriptive `User-Agent` header on all requests.
-- Implement `validate_article(title)`:
+- Add type hints on all function signatures and docstrings on public functions.
+- Include retry logic for transient failures (non-JSON responses from Wikipedia).
+- Implement `validate_article(title: str) -> str | None`:
   - Call the Wikimedia query API with `&redirects=1`.
-  - Return the canonical title if the article exists, or raise/return an error if it does not (page ID `-1` or `missing` key present).
-- Implement `get_outgoing_links(title)`:
+  - Return the canonical title if the article exists, or `None` if it does not (page ID `-1` or `missing` key present).
+- Implement `get_outgoing_links(title: str) -> list[str]`:
   - Call the Wikimedia API with `prop=links`, `plnamespace=0`, `pllimit=max`.
   - Handle pagination via `plcontinue`. Loop until all pages are fetched.
   - Return a list of linked article titles.
-- Implement `get_backlinks(title)`:
+- Implement `get_backlinks(title: str) -> list[str]`:
   - Call the Wikimedia API with `list=backlinks`, `blnamespace=0`, `bllimit=max`.
   - Handle pagination via `blcontinue`. Loop until all pages are fetched.
   - Return a list of article titles that link to the given title.
@@ -33,17 +35,18 @@ Write and run a test script (`test_wiki_api.py`) that verifies:
 
 - `validate_article("Python (programming language)")` returns the exact title `"Python (programming language)"`.
 - `validate_article("USA")` resolves the redirect and returns `"United States"`.
-- `validate_article("Xyzzyxyzzy12345")` returns an error or `None` indicating the article does not exist.
-- `get_outgoing_links("Cat")` returns a list containing at least known links (e.g., `"Mammal"` should be in the list). Verify the return type is a list of strings. Verify all returned titles are in namespace 0 (no `Talk:`, `Wikipedia:`, `File:` prefixes).
-- `get_backlinks("Cat")` returns a list of strings. Verify it is non-empty. Verify all returned titles are in namespace 0.
-- Pagination: `get_outgoing_links("United States")` returns more than 500 results (confirming pagination works, since the API returns max 500 per page).
+- `validate_article("Xyzzyxyzzy12345")` returns `None`.
+- `get_outgoing_links("Cat")` returns a list containing `"Mammal"`. Verify all returned titles are in namespace 0 (no `Talk:`, `Wikipedia:`, `File:` prefixes).
+- `get_backlinks("Cat")` returns a non-empty list of strings in namespace 0.
+- Pagination: `get_outgoing_links("United States")` returns more than 500 results.
 
 All tests must pass before proceeding.
 
 ## Step 3: Implement the search algorithm (`search.py`)
 
-- Implement `find_chain(start, end)` using bidirectional iterative deepening search.
-- Handle the trivial case: if `start == end`, return a chain of one article immediately.
+- Implement `find_chain(start: str, end: str, on_progress: Callable[[str], None] | None = None) -> list[str] | None`.
+- Add type hints and docstrings.
+- Handle the trivial case: if `start == end`, return `[start]` immediately.
 - Data structures:
   - `forward_visited`: `dict[str, list[str]]` — title → path from start.
   - `backward_visited`: `dict[str, list[str]]` — title → path from end.
@@ -53,6 +56,7 @@ All tests must pass before proceeding.
   - Records each newly visited node and its path in the visited dict.
   - Skips nodes already present in the visited dict (visited at a shallower depth).
 - Main loop (lockstep, depths 1 through 3):
+  - At each depth, call `on_progress(f"Searching depth {depth}...")` if provided.
   - Run forward DFS to current depth limit.
   - Run backward DFS to current depth limit.
   - Compute intersection of `forward_visited` keys and `backward_visited` keys.
@@ -67,37 +71,46 @@ All tests must pass before proceeding.
 Write and run a test script (`test_search.py`) that verifies:
 
 - **Trivial case**: `find_chain("Cat", "Cat")` returns `["Cat"]`.
-- **Direct link**: `find_chain("Cat", "Mammal")` returns a chain of length 2: `["Cat", "Mammal"]`. (Verify "Mammal" is in Cat's outgoing links first.)
-- **Short chain**: `find_chain("Cat", "Dog")` returns a chain. Verify the chain starts with `"Cat"` and ends with `"Dog"`. Verify the chain length is ≤ 7. Verify each consecutive pair in the chain is connected (the first links to the second) by calling `get_outgoing_links` on each article and checking the next article is in the list.
-- **Chain validity**: For any returned chain, verify every consecutive link is valid (article N+1 appears in the outgoing links of article N).
-- **No result**: Attempt a search that is unlikely to complete within depth 3 (if such a pair can be identified), and verify the function returns `None`.
+- **Direct link**: `find_chain("Cat", "Mammal")` returns a chain of length 2: `["Cat", "Mammal"]`.
+- **Short chain**: `find_chain("Cat", "Dog")` returns a chain starting with `"Cat"`, ending with `"Dog"`, length ≤ 7.
+- **Chain validity**: For the returned chain, verify every consecutive pair is connected (article N+1 is in outgoing links of article N).
+- **Progress callback**: Pass a callback to `find_chain` and verify it is called with progress strings.
 
 All tests must pass before proceeding.
 
 ## Step 4: Implement the Flask app (`app.py`)
 
-- Create the Flask app.
+- Create the Flask app with no classes — use simple functions and a module-level `jobs` dictionary.
+- Add type hints and docstrings.
 - Implement `GET /` to serve `static/index.html`.
-- Implement `POST /api/find-chain`:
-  - Parse JSON body for `start` and `end` fields.
-  - Validate both articles using `validate_article()`. If either is invalid, return an error response.
-  - Handle trivial case (start == end after redirect resolution).
-  - Call `find_chain(start, end)` with a 60-second timeout (e.g., using `signal.alarm` or a threading timer).
-  - On success, build the response with status `"found"` and the chain (each entry has `title` and `url`).
-  - On not found, return status `"not_found"` with a message.
-  - On timeout or exception, return status `"error"` with a message.
+- Implement `POST /api/search`:
+  - Parse JSON body for `start` and `end` fields. Return error if missing or empty.
+  - Validate both articles using `validate_article()`. Return error if either is invalid.
+  - Handle trivial case (start == end after redirect resolution): return `{"status": "found", "chain": [...]}` immediately.
+  - Otherwise, generate a job ID (`uuid.uuid4().hex`), store the job in the `jobs` dict with status `"searching"`, start a background thread that runs `find_chain()`, and return `{"status": "ok", "job_id": "..."}`.
+  - The background thread updates the job's `progress` field via the `on_progress` callback, and sets the job's final status/result when done.
+  - Apply a 60-second timeout to the search thread. If it exceeds the timeout, mark the job as errored.
+- Implement `GET /api/search/<job_id>`:
+  - Look up the job ID in the `jobs` dict. Return error if not found.
+  - Return the current job state: `status`, `progress` (if searching), `chain` (if found), or `message` (if not found / error).
+- Implement `DELETE /api/cache`:
+  - Call `clear_cache()` from `cache.py` and return `{"status": "ok", "message": "Cache cleared."}`.
 - Construct URLs deterministically: `https://en.wikipedia.org/wiki/` + URL-encoded title.
 
 ### Tests before proceeding
 
 Write and run a test script (`test_app.py`) using Flask's test client that verifies:
 
-- **Successful search**: `POST /api/find-chain` with `{"start": "Cat", "end": "Mammal"}` returns status code 200, JSON with `"status": "found"`, and a `chain` array where each entry has `title` and `url` keys. Verify the first entry's title is `"Cat"` and the last is `"Mammal"`. Verify URLs match the pattern `https://en.wikipedia.org/wiki/{encoded_title}`.
-- **Trivial case**: `POST /api/find-chain` with `{"start": "Cat", "end": "Cat"}` returns `"status": "found"` with a chain of one article.
-- **Redirect resolution**: `POST /api/find-chain` with `{"start": "USA", "end": "USA"}` returns `"status": "found"` with chain `[{"title": "United States", ...}]`.
-- **Invalid article**: `POST /api/find-chain` with `{"start": "Xyzzyxyzzy12345", "end": "Cat"}` returns `"status": "error"` with a message indicating the article was not found.
-- **Missing fields**: `POST /api/find-chain` with `{}` or `{"start": "Cat"}` returns `"status": "error"`.
-- **`GET /`** returns status code 200 (requires `index.html` to exist; create a placeholder if the frontend isn't built yet).
+- **Job creation**: `POST /api/search` with `{"start": "Cat", "end": "Mammal"}` returns `{"status": "ok", "job_id": "..."}` with a non-empty job ID.
+- **Polling — searching**: Immediately after POST, `GET /api/search/<job_id>` returns `status` of `"searching"` or `"found"` (depending on speed).
+- **Polling — found**: Poll `GET /api/search/<job_id>` until status is no longer `"searching"`. Verify final status is `"found"` with a valid chain.
+- **Trivial case**: `POST /api/search` with `{"start": "Cat", "end": "Cat"}` returns `{"status": "found", ...}` immediately (no job ID needed).
+- **Redirect resolution**: `POST /api/search` with `{"start": "USA", "end": "USA"}` returns `{"status": "found"}` with chain title `"United States"`.
+- **Invalid article**: `POST /api/search` with `{"start": "Xyzzyxyzzy12345", "end": "Cat"}` returns `{"status": "error"}`.
+- **Missing fields**: `POST /api/search` with `{}` returns `{"status": "error"}`.
+- **Invalid job ID**: `GET /api/search/nonexistent` returns `{"status": "error"}`.
+- **`GET /`** returns status code 200.
+- **`DELETE /api/cache`** returns `{"status": "ok"}`.
 
 All tests must pass before proceeding.
 
@@ -118,30 +131,28 @@ All tests must pass before proceeding.
 - Error/not-found message styling.
 
 ### `static/script.js`
-- Attach a submit handler to the form.
 - On submit:
   - Prevent default form submission.
-  - Read the two input values.
-  - Disable inputs and button; show a loading indicator in the result area.
-  - Send `POST /api/find-chain` with `Content-Type: application/json` and the two titles.
-  - Set a fetch timeout matching the server timeout (e.g., 90 seconds via `AbortController`).
-  - On response, parse JSON and handle:
-    - `"found"`: render the chain as clickable links with arrows between them.
-    - `"not_found"`: display the message.
-    - `"error"`: display the error message.
-  - Re-enable inputs and button.
+  - Disable inputs and button; show "Searching..." in the result area.
+  - Send `POST /api/search` with `Content-Type: application/json` and the two titles.
+  - If the response contains an error, display it and re-enable inputs.
+  - If the response contains `"found"` (trivial case), render the chain immediately.
+  - If the response contains a `job_id`, begin polling `GET /api/search/<job_id>` every 1–2 seconds.
+- While polling:
+  - If status is `"searching"`, update the loading area with the `progress` message.
+  - If status is `"found"`, stop polling, render the chain as clickable links with arrows.
+  - If status is `"not_found"` or `"error"`, stop polling, display the message.
+  - Re-enable inputs and button when polling stops.
+- Use vanilla JavaScript. No frameworks or libraries.
 
 ### Tests before proceeding
 
-Start the Flask app and test in a browser (or via `curl` to simulate frontend behavior):
+Start the Flask app and test via `curl`:
 
-- Verify `GET /` serves the HTML page with the form visible.
-- Verify the CSS loads and the page is styled (centered layout, readable fonts).
-- Verify submitting the form with valid inputs shows a loading indicator, then displays the chain as clickable links with arrows.
-- Verify submitting with a non-existent article displays the error message.
-- Verify submitting with identical start and end displays a single-article chain.
-- Verify inputs and button are disabled during the search and re-enabled after.
-- Verify all links in the result open the correct Wikipedia page in a new tab.
+- Verify `GET /` serves the HTML page with the form.
+- Verify static CSS and JS assets load at `/static/style.css` and `/static/script.js`.
+- Verify `POST /api/search` returns a job ID, and polling `GET /api/search/<job_id>` eventually returns a result.
+- Verify the HTML references `/static/style.css` and `/static/script.js` correctly.
 
 All tests must pass before proceeding.
 
@@ -150,6 +161,7 @@ All tests must pass before proceeding.
 ### Implement `cache.py`
 
 - Use Python's built-in `sqlite3` module (no new dependencies).
+- Add type hints and docstrings.
 - On import, open (or create) `cache.db` in the `wikipedia-chain/` directory.
 - Create the `link_cache` table if it does not exist:
   ```sql
@@ -161,14 +173,14 @@ All tests must pass before proceeding.
       PRIMARY KEY (title, link_type)
   );
   ```
-- Implement `get_cached_links(title, link_type)`:
+- Implement `get_cached_links(title: str, link_type: str) -> list[str] | None`:
   - Query for a row matching `(title, link_type)`.
   - If found and `cached_at` is less than 1 day old, return the deserialized JSON list.
   - If found but expired, delete the row and return `None`.
   - If not found, return `None`.
-- Implement `set_cached_links(title, link_type, links)`:
+- Implement `set_cached_links(title: str, link_type: str, links: list[str]) -> None`:
   - Insert or replace the row with the current timestamp and `json.dumps(links)`.
-- Implement `clear_cache()`:
+- Implement `clear_cache() -> None`:
   - Delete all rows from `link_cache`.
 
 ### Integrate cache into `wiki_api.py`
@@ -178,35 +190,32 @@ All tests must pass before proceeding.
   - Otherwise, fetch from the API as before, call `set_cached_links(title, "outgoing", links)`, then return the links.
 - Modify `get_backlinks(title)` the same way using `link_type="backlinks"`.
 
-### Add `DELETE /api/cache` endpoint to `app.py`
-
-- Import `clear_cache` from `cache.py`.
-- Add a route `DELETE /api/cache` that calls `clear_cache()` and returns `{"status": "ok", "message": "Cache cleared."}`.
-
 ### Tests before proceeding
 
 Write and run a test script (`test_cache.py`) that verifies:
 
 - **Cache miss**: `get_cached_links("Cat", "outgoing")` returns `None` on a fresh database.
 - **Cache write and read**: Call `set_cached_links("Cat", "outgoing", ["Dog", "Mammal"])`, then `get_cached_links("Cat", "outgoing")` returns `["Dog", "Mammal"]`.
-- **Separate link types**: Caching outgoing links for "Cat" does not affect backlinks for "Cat". Both can be stored and retrieved independently.
-- **Cache expiration**: Insert a row with a `cached_at` timestamp older than 1 day, then verify `get_cached_links` returns `None` for it.
+- **Separate link types**: Caching outgoing links for "Cat" does not affect backlinks for "Cat".
+- **Cache expiration**: Insert a row with a `cached_at` timestamp older than 1 day, then verify `get_cached_links` returns `None`.
 - **Cache clear**: Populate several entries, call `clear_cache()`, verify all return `None`.
-- **Integration with wiki_api**: Call `get_outgoing_links("Cat")` twice. Verify the second call returns the same result. Verify a row exists in the database for `("Cat", "outgoing")`.
-- **DELETE /api/cache endpoint**: Using Flask's test client, send `DELETE /api/cache` and verify it returns `{"status": "ok", "message": "Cache cleared."}`. Verify the cache is actually empty afterward.
-- **Search still works**: Run `find_chain("Cat", "Mammal")` and verify it returns a valid chain (confirming the cache integration doesn't break the search).
+- **Integration with wiki_api**: Call `get_outgoing_links("Cat")` twice. Verify a row exists in the database after the first call. Verify the second call returns the same result.
+- **DELETE /api/cache endpoint**: Send `DELETE /api/cache` and verify the cache is cleared.
+- **Search still works**: Run `find_chain("Cat", "Mammal")` and verify it returns a valid chain.
 
 All tests must pass before proceeding.
 
 ## Step 7: End-to-end integration testing
 
-Start the Flask app and run through the following full scenarios in the browser:
+Start the Flask app and run through the following full scenarios:
 
-- **Happy path**: Search "Cat" → "Dog". Verify a chain is displayed with clickable links. Click each link to confirm it opens the correct Wikipedia article.
-- **Trivial case**: Search "Python (programming language)" → "Python (programming language)". Verify a single-article chain is shown.
-- **Redirect handling**: Search "USA" → "UK". Verify the chain uses canonical titles ("United States", "United Kingdom").
-- **Non-existent article**: Search "Xyzzyxyzzy12345" → "Cat". Verify an error message is displayed immediately (no long wait).
-- **Empty inputs**: Submit with one or both inputs empty. Verify an error is shown.
-- **Not found**: If possible, find two articles unlikely to connect within 6 hops and verify the "not found" message appears.
-- **Timeout behavior**: Verify the app does not hang indefinitely on difficult searches.
-- **Multiple searches**: Run several searches in a row without reloading the page. Verify each search clears the previous result and displays the new one correctly.
+- **Happy path**: POST to start "Cat" → "Dog" search, poll until found. Verify chain is valid with clickable URLs.
+- **Trivial case**: POST "Python (programming language)" → "Python (programming language)". Verify immediate result (no job ID).
+- **Redirect handling**: POST "USA" → "UK". Verify canonical titles in response.
+- **Non-existent article**: POST "Xyzzyxyzzy12345" → "Cat". Verify immediate error (no job created).
+- **Empty inputs**: POST with empty fields. Verify error.
+- **Progress reporting**: Poll a running job and verify `progress` field updates.
+- **Not found**: If possible, find two articles unlikely to connect within 6 hops. Verify `not_found` status.
+- **Multiple searches**: Start several searches in sequence. Verify each gets its own job ID and returns independently.
+- **Cache behavior**: Run the same search twice. Verify the second run is faster (cache hits).
+- **Cache clear**: Call `DELETE /api/cache`, then re-run a search and verify it still works.
