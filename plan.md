@@ -145,7 +145,60 @@ Start the Flask app and test in a browser (or via `curl` to simulate frontend be
 
 All tests must pass before proceeding.
 
-## Step 6: End-to-end integration testing
+## Step 6: Add SQLite link caching
+
+### Implement `cache.py`
+
+- Use Python's built-in `sqlite3` module (no new dependencies).
+- On import, open (or create) `cache.db` in the `wikipedia-chain/` directory.
+- Create the `link_cache` table if it does not exist:
+  ```sql
+  CREATE TABLE IF NOT EXISTS link_cache (
+      title TEXT NOT NULL,
+      link_type TEXT NOT NULL,
+      links TEXT NOT NULL,
+      cached_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (title, link_type)
+  );
+  ```
+- Implement `get_cached_links(title, link_type)`:
+  - Query for a row matching `(title, link_type)`.
+  - If found and `cached_at` is less than 1 day old, return the deserialized JSON list.
+  - If found but expired, delete the row and return `None`.
+  - If not found, return `None`.
+- Implement `set_cached_links(title, link_type, links)`:
+  - Insert or replace the row with the current timestamp and `json.dumps(links)`.
+- Implement `clear_cache()`:
+  - Delete all rows from `link_cache`.
+
+### Integrate cache into `wiki_api.py`
+
+- Modify `get_outgoing_links(title)`:
+  - Call `get_cached_links(title, "outgoing")` first. If it returns a result, return it.
+  - Otherwise, fetch from the API as before, call `set_cached_links(title, "outgoing", links)`, then return the links.
+- Modify `get_backlinks(title)` the same way using `link_type="backlinks"`.
+
+### Add `DELETE /api/cache` endpoint to `app.py`
+
+- Import `clear_cache` from `cache.py`.
+- Add a route `DELETE /api/cache` that calls `clear_cache()` and returns `{"status": "ok", "message": "Cache cleared."}`.
+
+### Tests before proceeding
+
+Write and run a test script (`test_cache.py`) that verifies:
+
+- **Cache miss**: `get_cached_links("Cat", "outgoing")` returns `None` on a fresh database.
+- **Cache write and read**: Call `set_cached_links("Cat", "outgoing", ["Dog", "Mammal"])`, then `get_cached_links("Cat", "outgoing")` returns `["Dog", "Mammal"]`.
+- **Separate link types**: Caching outgoing links for "Cat" does not affect backlinks for "Cat". Both can be stored and retrieved independently.
+- **Cache expiration**: Insert a row with a `cached_at` timestamp older than 1 day, then verify `get_cached_links` returns `None` for it.
+- **Cache clear**: Populate several entries, call `clear_cache()`, verify all return `None`.
+- **Integration with wiki_api**: Call `get_outgoing_links("Cat")` twice. Verify the second call returns the same result. Verify a row exists in the database for `("Cat", "outgoing")`.
+- **DELETE /api/cache endpoint**: Using Flask's test client, send `DELETE /api/cache` and verify it returns `{"status": "ok", "message": "Cache cleared."}`. Verify the cache is actually empty afterward.
+- **Search still works**: Run `find_chain("Cat", "Mammal")` and verify it returns a valid chain (confirming the cache integration doesn't break the search).
+
+All tests must pass before proceeding.
+
+## Step 7: End-to-end integration testing
 
 Start the Flask app and run through the following full scenarios in the browser:
 

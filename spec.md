@@ -8,9 +8,11 @@ A web application that finds chains of linked Wikipedia articles between two giv
 
 ```
 wikipedia-chain/
-├── app.py              # Flask app, API endpoint, serves static files
+├── app.py              # Flask app, API endpoints, serves static files
 ├── search.py           # Bidirectional IDS algorithm
 ├── wiki_api.py         # Wikimedia API client (get links, backlinks, validate)
+├── cache.py            # SQLite link cache
+├── cache.db            # SQLite database (auto-created, not committed to git)
 ├── requirements.txt    # flask, requests
 └── static/
     ├── index.html
@@ -61,6 +63,16 @@ Request body:
 ```
 
 URLs are constructed deterministically: `https://en.wikipedia.org/wiki/` + URL-encoded title.
+
+**`DELETE /api/cache`**
+
+Clears all cached link data. Response:
+```json
+{
+  "status": "ok",
+  "message": "Cache cleared."
+}
+```
 
 ### Route for Frontend
 
@@ -151,9 +163,39 @@ After **both** sides complete a depth level, compute the intersection of the two
 
 Within each side's search, across depth iterations, **skip nodes that were already visited at a shallower depth**. This avoids redundant Wikimedia API calls. Since iterative deepening re-runs shallower depths, this optimization is significant.
 
-### No Caching
+### Link Caching (SQLite)
 
-Do not cache API results between separate search requests. Each search starts fresh.
+Cache the results of `get_outgoing_links()` and `get_backlinks()` in a local SQLite database (`cache.db`) so that repeated lookups for the same article skip the Wikimedia API entirely.
+
+#### Database Schema
+
+A single table with a denormalized design (one row per article per direction):
+
+```sql
+CREATE TABLE IF NOT EXISTS link_cache (
+    title TEXT NOT NULL,
+    link_type TEXT NOT NULL,  -- 'outgoing' or 'backlinks'
+    links TEXT NOT NULL,      -- JSON array of article titles
+    cached_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (title, link_type)
+);
+```
+
+#### Cache Behavior
+
+- **On read**: Before making an API call, check the cache for a matching `(title, link_type)` row. If found and `cached_at` is less than **1 day** old, deserialize the JSON `links` column and return it. If found but expired, delete the row and treat it as a miss.
+- **On write**: After fetching links from the API, insert or replace the row with the current timestamp and the links serialized as a JSON array.
+- **Cache location**: `wikipedia-chain/cache.db`, created automatically on first use.
+- **Database creation**: The table is created via `CREATE TABLE IF NOT EXISTS` when the cache module initializes, so no separate setup step is needed.
+
+#### Cache Clearing
+
+- **API endpoint**: `DELETE /api/cache` — deletes all rows from `link_cache` and returns `{"status": "ok", "message": "Cache cleared."}`.
+- **Manual**: Users can also delete the `cache.db` file directly; it will be recreated on next use.
+
+#### Integration
+
+The caching logic lives in a new module `cache.py`. The `wiki_api.py` module imports from `cache.py` and wraps `get_outgoing_links()` and `get_backlinks()` to check/populate the cache transparently. The rest of the codebase (search, app) requires no changes.
 
 ### Single-Threaded
 

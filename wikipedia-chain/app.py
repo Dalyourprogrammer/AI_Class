@@ -6,6 +6,7 @@ from flask import Flask, jsonify, request, send_from_directory
 
 from search import find_chain
 from wiki_api import validate_article
+from cache import clear_cache
 
 app = Flask(__name__, static_folder="static")
 
@@ -77,6 +78,12 @@ def api_find_chain():
 
     except Exception as e:
         return jsonify(status="error", message=f"An error occurred: {e}"), 500
+
+
+@app.route("/api/cache", methods=["DELETE"])
+def api_clear_cache():
+    clear_cache()
+    return jsonify(status="ok", message="Cache cleared.")
 
 
 def _article(title):

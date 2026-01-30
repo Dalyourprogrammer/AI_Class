@@ -1,6 +1,7 @@
 import time
 import requests
 from urllib.parse import quote
+from cache import get_cached_links, set_cached_links
 
 BASE_URL = "https://en.wikipedia.org/w/api.php"
 USER_AGENT = "WikipediaChainFinder/1.0 (Educational project; Python/requests)"
@@ -41,6 +42,10 @@ def validate_article(title):
 
 def get_outgoing_links(title):
     """Get all outgoing article links (namespace 0) from a Wikipedia page."""
+    cached = get_cached_links(title, "outgoing")
+    if cached is not None:
+        return cached
+
     links = []
     params = {
         "action": "query",
@@ -60,11 +65,17 @@ def get_outgoing_links(title):
             params["plcontinue"] = resp["continue"]["plcontinue"]
         else:
             break
+
+    set_cached_links(title, "outgoing", links)
     return links
 
 
 def get_backlinks(title):
     """Get all pages that link to the given Wikipedia page (namespace 0)."""
+    cached = get_cached_links(title, "backlinks")
+    if cached is not None:
+        return cached
+
     links = []
     params = {
         "action": "query",
@@ -82,4 +93,6 @@ def get_backlinks(title):
             params["blcontinue"] = resp["continue"]["blcontinue"]
         else:
             break
+
+    set_cached_links(title, "backlinks", links)
     return links
