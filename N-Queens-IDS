@@ -1,0 +1,180 @@
+"""
+N-queens problem using iterative deepening search
+DSM and Claude, 2026
+"""
+import time
+
+def is_safe(state: tuple, row: int, col: int) -> bool:
+    """
+    Check if placing a queen at (row, col) is safe given the current state.
+    
+    Args:
+        state: Current partial solution (tuple of column positions)
+        row: Row to place the new queen
+        col: Column to place the new queen
+    
+    Returns:
+        True if placement is safe, False otherwise
+    """
+    # The built-in enumerate function generates (index, value) pairs for the items
+    # in the tuple
+    for r, c in enumerate(state):
+        # Check column conflict (row conflict is impossible by construction)
+        if c == col:
+            return False
+        # Check diagonal conflict
+        if abs(r - row) == abs(c - col):
+            return False
+    # No conflict was found, so this placement is valid
+    return True
+
+def get_successors(state: tuple, n: int) -> list:
+    """
+    Generate all valid successor states by placing a queen in the next row.
+    """
+    successors = []
+    row = len(state)  # Next row to place a queen
+    
+    if row >= n:
+        return successors
+    
+    for col in range(n):
+        # If (row, col) is a safe position, create a successor by appending
+        # col to the current state tuple
+        if is_safe(state, row, col):
+            successors.append(state + (col,))
+    
+    return successors
+
+def is_goal(state: tuple, n: int) -> bool:
+    return len(state) == n
+
+def depth_limited_search(n: int, depth_limit: int, stats: dict) -> tuple:
+    """
+    Perform depth-limited search for N-Queens problem.
+    
+    Args:
+        n: Size of the board
+        depth_limit: Maximum depth to search
+        stats: Dictionary to track nodes_expanded and nodes_created
+    
+    Returns:
+        A solution tuple if found, None otherwise
+    """
+    # Initialize stack for DFS (using list as stack)
+    frontier = []
+    
+    # Begin with the starting state (empty board) at depth 0
+    initial_state = ((), 0)  # (state, depth)
+    frontier.append(initial_state)
+    
+    while len(frontier) > 0:
+        # Pop from the end of the stack (DFS)
+        x, depth = frontier.pop()
+        stats['nodes_expanded'] += 1
+        
+        # If x is the goal state, we're done
+        if is_goal(x, n):
+            return x
+        
+        # Only expand if we haven't reached the depth limit
+        if depth < depth_limit:
+            # Generate successors of x
+            s = get_successors(x, n)
+            stats['nodes_created'] += len(s)
+            
+            # Insert new successor states into frontier with incremented depth
+            for i in s:
+                frontier.append((i, depth + 1))
+    
+    # No solution found at this depth limit
+    return None
+
+def solve_n_queens_ids(n: int) -> tuple:
+    """
+    Solve the N-Queens problem using Iterative Deepening Search.
+    
+    Args:
+        n: Size of the board (number of queens)
+    
+    Returns:
+        A tuple of (solution, nodes_expanded, nodes_created, runtime)
+        - solution: tuple representing a valid solution, or None if no solution exists
+        - nodes_expanded: number of nodes removed from frontier and explored
+        - nodes_created: total number of nodes generated (including initial state)
+        - runtime: time taken to find solution in seconds
+    """
+    if n <= 0:
+        return None, 0, 0, 0.0
+    
+    # Start timing
+    start_time = time.time()
+    
+    # Track cumulative statistics across all depth limits
+    total_nodes_expanded = 0
+    total_nodes_created = 1  # Count initial state
+    
+    # Iteratively increase depth limit
+    for depth_limit in range(n + 1):
+        # Statistics for this iteration
+        stats = {'nodes_expanded': 0, 'nodes_created': 0}
+        
+        # Perform depth-limited search
+        solution = depth_limited_search(n, depth_limit, stats)
+        
+        # Update cumulative statistics
+        total_nodes_expanded += stats['nodes_expanded']
+        total_nodes_created += stats['nodes_created']
+        
+        # If solution found, return it
+        if solution is not None:
+            runtime = time.time() - start_time
+            return solution, total_nodes_expanded, total_nodes_created, runtime
+    
+    # No solution was found
+    runtime = time.time() - start_time
+    return None, total_nodes_expanded, total_nodes_created, runtime
+
+def print_board(solution: tuple) -> None:
+    """
+    Print the chessboard with queens placed.
+    """
+    if solution is None:
+        print("No solution found")
+        return
+    
+    n = len(solution)
+    print(f"\n{n}-Queens Solution:")
+    print("+" + "---+" * n)
+    
+    for row in range(n):
+        line = "|"
+        for col in range(n):
+            if solution[row] == col:
+                line += " Q |"
+            else:
+                line += "   |"
+        print(line)
+        print("+" + "---+" * n)
+
+def print_search_statistics(n: int, nodes_expanded: int, nodes_created: int, runtime: float) -> None:
+    """
+    Print the search statistics for a given N-Queens problem.
+    
+    Args:
+        n: Size of the board
+        nodes_expanded: Number of nodes removed from frontier and explored
+        nodes_created: Total number of nodes generated
+        runtime: Time taken to find solution in seconds
+    """
+    print(f"N={n}: Nodes expanded = {nodes_expanded}, Nodes created = {nodes_created}, Runtime = {runtime:.6f} seconds")
+
+### Main
+for n in range(1, 13):
+    solution, nodes_expanded, nodes_created, runtime = solve_n_queens_ids(n)
+    print_search_statistics(n, nodes_expanded, nodes_created, runtime)
+    
+# Print one example board for N=8
+print("\nExample board for N=8:")
+solution, _, _, _ = solve_n_queens_ids(8)
+print_board(solution)

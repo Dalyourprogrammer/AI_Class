@@ -1,0 +1,277 @@
+"""
+N-queens problem comparing BFS and IDS
+DSM and Claude, 2026
+"""
+import time
+import matplotlib.pyplot as plt
+
+def is_safe(state: tuple, row: int, col: int) -> bool:
+    """
+    Check if placing a queen at (row, col) is safe given the current state.
+    
+    Args:
+        state: Current partial solution (tuple of column positions)
+        row: Row to place the new queen
+        col: Column to place the new queen
+    
+    Returns:
+        True if placement is safe, False otherwise
+    """
+    for r, c in enumerate(state):
+        # Check column conflict (row conflict is impossible by construction)
+        if c == col:
+            return False
+        # Check diagonal conflict
+        if abs(r - row) == abs(c - col):
+            return False
+    # No conflict was found, so this placement is valid
+    return True
+
+def get_successors(state: tuple, n: int) -> list:
+    """
+    Generate all valid successor states by placing a queen in the next row.
+    """
+    successors = []
+    row = len(state)  # Next row to place a queen
+    
+    if row >= n:
+        return successors
+    
+    for col in range(n):
+        # If (row, col) is a safe position, create a successor by appending
+        # col to the current state tuple
+        if is_safe(state, row, col):
+            successors.append(state + (col,))
+    
+    return successors
+
+def is_goal(state: tuple, n: int) -> bool:
+    return len(state) == n
+
+def solve_n_queens_bfs(n: int) -> tuple:
+    """
+    Solve the N-Queens problem using Breadth-First Search.
+    
+    Args:
+        n: Size of the board (number of queens)
+    
+    Returns:
+        A tuple of (solution, nodes_expanded, nodes_created, runtime)
+    """
+    if n <= 0:
+        return None, 0, 0, 0.0
+    
+    start_time = time.time()
+    
+    frontier = []
+    initial_state = ()
+    frontier.append(initial_state)
+    
+    nodes_expanded = 0
+    nodes_created = 1
+    
+    while len(frontier) > 0:
+        x = frontier.pop(0)
+        nodes_expanded += 1
+        
+        if is_goal(x, n):
+            runtime = time.time() - start_time
+            return x, nodes_expanded, nodes_created, runtime
+        
+        s = get_successors(x, n)
+        nodes_created += len(s)
+        
+        for i in s:
+            frontier.append(i)
+    
+    runtime = time.time() - start_time
+    return None, nodes_expanded, nodes_created, runtime
+
+def depth_limited_search(n: int, depth_limit: int, stats: dict) -> tuple:
+    """
+    Perform depth-limited search for N-Queens problem.
+    
+    Args:
+        n: Size of the board
+        depth_limit: Maximum depth to search
+        stats: Dictionary to track nodes_expanded and nodes_created
+    
+    Returns:
+        A solution tuple if found, None otherwise
+    """
+    frontier = []
+    initial_state = ((), 0)
+    frontier.append(initial_state)
+    
+    while len(frontier) > 0:
+        x, depth = frontier.pop()
+        stats['nodes_expanded'] += 1
+        
+        if is_goal(x, n):
+            return x
+        
+        if depth < depth_limit:
+            s = get_successors(x, n)
+            stats['nodes_created'] += len(s)
+            
+            for i in s:
+                frontier.append((i, depth + 1))
+    
+    return None
+
+def solve_n_queens_ids(n: int) -> tuple:
+    """
+    Solve the N-Queens problem using Iterative Deepening Search.
+    
+    Args:
+        n: Size of the board (number of queens)
+    
+    Returns:
+        A tuple of (solution, nodes_expanded, nodes_created, runtime)
+    """
+    if n <= 0:
+        return None, 0, 0, 0.0
+    
+    start_time = time.time()
+    
+    total_nodes_expanded = 0
+    total_nodes_created = 1
+    
+    for depth_limit in range(n + 1):
+        stats = {'nodes_expanded': 0, 'nodes_created': 0}
+        solution = depth_limited_search(n, depth_limit, stats)
+        
+        total_nodes_expanded += stats['nodes_expanded']
+        total_nodes_created += stats['nodes_created']
+        
+        if solution is not None:
+            runtime = time.time() - start_time
+            return solution, total_nodes_expanded, total_nodes_created, runtime
+    
+    runtime = time.time() - start_time
+    return None, total_nodes_expanded, total_nodes_created, runtime
+
+def print_board(solution: tuple) -> None:
+    """
+    Print the chessboard with queens placed.
+    """
+    if solution is None:
+        print("No solution found")
+        return
+    
+    n = len(solution)
+    print(f"\n{n}-Queens Solution:")
+    print("+" + "---+" * n)
+    
+    for row in range(n):
+        line = "|"
+        for col in range(n):
+            if solution[row] == col:
+                line += " Q |"
+            else:
+                line += "   |"
+        print(line)
+        print("+" + "---+" * n)
+
+def print_comparison_statistics(n: int, bfs_stats: tuple, ids_stats: tuple) -> None:
+    """
+    Print comparison statistics for BFS and IDS.
+    
+    Args:
+        n: Size of the board
+        bfs_stats: (nodes_expanded, nodes_created, runtime) for BFS
+        ids_stats: (nodes_expanded, nodes_created, runtime) for IDS
+    """
+    print(f"\nN={n}:")
+    print(f"  BFS: Nodes expanded = {bfs_stats[0]}, Nodes created = {bfs_stats[1]}, Runtime = {bfs_stats[2]:.6f} seconds")
+    print(f"  IDS: Nodes expanded = {ids_stats[0]}, Nodes created = {ids_stats[1]}, Runtime = {ids_stats[2]:.6f} seconds")
+
+def plot_comparison(board_sizes: list, bfs_data: dict, ids_data: dict) -> None:
+    """
+    Create two comparison plots: one for nodes expanded, one for nodes created.
+    
+    Args:
+        board_sizes: List of N values tested
+        bfs_data: Dictionary with 'expanded' and 'created' lists for BFS
+        ids_data: Dictionary with 'expanded' and 'created' lists for IDS
+    """
+    # Create figure with two subplots side by side
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    
+    # Plot 1: Nodes Expanded
+    ax1.plot(board_sizes, bfs_data['expanded'], 
+             marker='o', linestyle='-', linewidth=2, 
+             label='BFS', color='blue')
+    ax1.plot(board_sizes, ids_data['expanded'], 
+             marker='s', linestyle='--', linewidth=2, 
+             label='IDS', color='red')
+    
+    ax1.set_title('Nodes Expanded Comparison', fontsize=14, fontweight='bold')
+    ax1.set_xlabel('Board Size (N)', fontsize=12)
+    ax1.set_ylabel('Nodes Expanded', fontsize=12)
+    ax1.set_ylim(bottom=0)
+    ax1.legend(loc='upper left', fontsize=10)
+    ax1.grid(True, alpha=0.3)
+    
+    # Plot 2: Nodes Created
+    ax2.plot(board_sizes, bfs_data['created'], 
+             marker='o', linestyle='-', linewidth=2, 
+             label='BFS', color='blue')
+    ax2.plot(board_sizes, ids_data['created'], 
+             marker='s', linestyle='--', linewidth=2, 
+             label='IDS', color='red')
+    
+    ax2.set_title('Nodes Created Comparison', fontsize=14, fontweight='bold')
+    ax2.set_xlabel('Board Size (N)', fontsize=12)
+    ax2.set_ylabel('Nodes Created', fontsize=12)
+    ax2.set_ylim(bottom=0)
+    ax2.legend(loc='upper left', fontsize=10)
+    ax2.grid(True, alpha=0.3)
+    
+    # Adjust layout and save
+    plt.tight_layout()
+    plt.savefig('bfs_vs_ids_comparison.png', dpi=300, bbox_inches='tight')
+    print("\nComparison plots saved as 'bfs_vs_ids_comparison.png'")
+    
+    plt.show()
+
+### Main
+print("="*60)
+print("N-Queens: BFS vs IDS Performance Comparison")
+print("="*60)
+
+# Data storage
+board_sizes = []
+bfs_data = {'expanded': [], 'created': [], 'runtime': []}
+ids_data = {'expanded': [], 'created': [], 'runtime': []}
+
+# Run both algorithms for each N
+for n in range(1, 13):
+    board_sizes.append(n)
+    
+    # Solve with BFS
+    solution_bfs, exp_bfs, cre_bfs, time_bfs = solve_n_queens_bfs(n)
+    bfs_data['expanded'].append(exp_bfs)
+    bfs_data['created'].append(cre_bfs)
+    bfs_data['runtime'].append(time_bfs)
+    
+    # Solve with IDS
+    solution_ids, exp_ids, cre_ids, time_ids = solve_n_queens_ids(n)
+    ids_data['expanded'].append(exp_ids)
+    ids_data['created'].append(cre_ids)
+    ids_data['runtime'].append(time_ids)
+    
+    # Print comparison
+    print_comparison_statistics(n, (exp_bfs, cre_bfs, time_bfs), 
+                                (exp_ids, cre_ids, time_ids))
+
+# Print one example board for N=8
+print("\n" + "="*60)
+print("Example board for N=8 (BFS):")
+solution, _, _, _ = solve_n_queens_bfs(8)
+print_board(solution)
+
+# Generate comparison plots
+print("\n" + "="*60)
+print("Generating comparison plots...")
+plot_comparison(board_sizes, bfs_data, ids_data)

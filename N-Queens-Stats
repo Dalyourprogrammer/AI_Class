@@ -1,0 +1,147 @@
+"""
+N-queens problem using breadth-first search
+DSM and Claude, 2026
+"""
+import time
+
+def is_safe(state: tuple, row: int, col: int) -> bool:
+    """
+    Check if placing a queen at (row, col) is safe given the current state.
+    
+    Args:
+        state: Current partial solution (tuple of column positions)
+        row: Row to place the new queen
+        col: Column to place the new queen
+    
+    Returns:
+        True if placement is safe, False otherwise
+    """
+    # The built-in enumerate function generates (index, value) pairs for the items
+    # in the tuple
+    for r, c in enumerate(state):
+        # Check column conflict (row conflict is impossible by construction)
+        if c == col:
+            return False
+        # Check diagonal conflict
+        if abs(r - row) == abs(c - col):
+            return False
+    # No conflict was found, so this placement is valid
+    return True
+
+def get_successors(state: tuple, n: int) -> list:
+    """
+    Generate all valid successor states by placing a queen in the next row.
+    """
+    successors = []
+    row = len(state)  # Next row to place a queen
+    
+    if row >= n:
+        return successors
+    
+    for col in range(n):
+        # If (row, col) is a safe position, create a successor by appending
+        # col to the current state tuple
+        if is_safe(state, row, col):
+            successors.append(state + (col,))
+    
+    return successors
+
+def is_goal(state: tuple, n: int) -> bool:
+    return len(state) == n
+
+def solve_n_queens_bfs(n: int) -> tuple:
+    """
+    Solve the N-Queens problem using Breadth-First Search.
+    
+    Args:
+        n: Size of the board (number of queens)
+    
+    Returns:
+        A tuple of (solution, nodes_expanded, nodes_created, runtime)
+        - solution: tuple representing a valid solution, or None if no solution exists
+        - nodes_expanded: number of nodes removed from frontier and explored
+        - nodes_created: total number of nodes generated (including initial state)
+        - runtime: time taken to find solution in seconds
+    """
+    if n <= 0:
+        return None, 0, 0, 0.0
+    
+    # Start timing
+    start_time = time.time()
+    
+    # Initialize empty frontier structure (queue for BFS)
+    frontier = []
+    
+    # Begin with the starting state (empty board)
+    initial_state = ()
+    frontier.append(initial_state)
+    
+    # Track statistics
+    nodes_expanded = 0  # Nodes removed from frontier and explored
+    nodes_created = 1   # Total nodes generated (start with initial state)
+    
+    while len(frontier) > 0:
+        # Pop from the front of the queue
+        x = frontier.pop(0)
+        nodes_expanded += 1  # This node is being expanded
+        
+        # If x is the goal state, we're done
+        if is_goal(x, n):
+            runtime = time.time() - start_time
+            return x, nodes_expanded, nodes_created, runtime  # Output success
+        
+        # Generate successors of x
+        s = get_successors(x, n)
+        nodes_created += len(s)  # Count newly created nodes
+        
+        # Insert new unvisited successor states into frontier
+        for i in s:
+            frontier.append(i)
+    
+    # No solution was found
+    runtime = time.time() - start_time
+    return None, nodes_expanded, nodes_created, runtime
+
+def print_board(solution: tuple) -> None:
+    """
+    Print the chessboard with queens placed.
+    """
+    if solution is None:
+        print("No solution found")
+        return
+    
+    n = len(solution)
+    print(f"\n{n}-Queens Solution:")
+    print("+" + "---+" * n)
+    
+    for row in range(n):
+        line = "|"
+        for col in range(n):
+            if solution[row] == col:
+                line += " Q |"
+            else:
+                line += "   |"
+        print(line)
+        print("+" + "---+" * n)
+
+def print_search_statistics(n: int, nodes_expanded: int, nodes_created: int, runtime: float) -> None:
+    """
+    Print the search statistics for a given N-Queens problem.
+    
+    Args:
+        n: Size of the board
+        nodes_expanded: Number of nodes removed from frontier and explored
+        nodes_created: Total number of nodes generated
+        runtime: Time taken to find solution in seconds
+    """
+    print(f"N={n}: Nodes expanded = {nodes_expanded}, Nodes created = {nodes_created}, Runtime = {runtime:.6f} seconds")
+
+### Main
+for n in range(1, 13):
+    solution, nodes_expanded, nodes_created, runtime = solve_n_queens_bfs(n)
+    print_search_statistics(n, nodes_expanded, nodes_created, runtime)
+    
+# Print one example board for N=8
+print("\nExample board for N=8:")
+solution, _, _, _ = solve_n_queens_bfs(8)
+print_board(solution)
