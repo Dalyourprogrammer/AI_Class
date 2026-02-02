@@ -16,7 +16,24 @@ class State(object):
         self.grid = start_grid
         self.total_moves = 0
 
-    #--- Fill in the rest of the class...
+    def manhattan_distance(self):
+        return abs(self.position[0] - self.goal[0]) + abs(self.position[1] - self.goal[1])
+
+    def __lt__(self, other):
+        return self.total_moves < other.total_moves
+
+    def get_moves(self):
+        moves = []
+        r, c = self.position
+        for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            nr, nc = r + dr, c + dc
+            if self.grid[nr][nc] != 1 and self.grid[nr][nc] != '*':
+                new_grid = deepcopy(self.grid)
+                new_grid[nr][nc] = '*'
+                new_state = State((nr, nc), self.goal, new_grid)
+                new_state.total_moves = self.total_moves + 1
+                moves.append(new_state)
+        return moves
 
 
 def create_grid():
@@ -120,9 +137,26 @@ def main():
     # A call to queue.get() returns the tuple with the minimum first value
     queue.put((priority, start_state))
 
-    # Maybe you should use a dictionary to keep track of visited positions?
+    visited = set()
 
-    #--- Fill in the rest of the search...
+    while not queue.empty():
+        priority, state = queue.get()
+
+        if state.position in visited:
+            continue
+
+        visited.add(state.position)
+
+        if state.position == goal_position:
+            print_grid(state.grid)
+            return
+
+        for next_state in state.get_moves():
+            if next_state.position not in visited:
+                p = next_state.total_moves + next_state.manhattan_distance()
+                queue.put((p, next_state))
+
+    print("No path exists\n")
 
 
 if __name__ == '__main__':
@@ -150,7 +184,7 @@ if __name__ == '__main__':
 
     for trial in range(5):
         print('\n\n-----Harder trial ' + str(trial + 1) + '-----')
-        ###main()
+        main()
 
     #--- INSANE mode
     num_rows = 20
@@ -159,4 +193,4 @@ if __name__ == '__main__':
 
     for trial in range(5):
         print('\n\n-----INSANE trial ' + str(trial + 1) + '-----')
-        ###main()
+        main()
