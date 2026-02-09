@@ -269,12 +269,23 @@ if __name__ == '__main__':
     print("  PHASE-TRANSITION EXPERIMENT")
     print("=" * 50)
 
-    # Sweep m from 1.0 to 10.0 in steps of 0.25
-    m_range = [round(1.0 + 0.25 * i, 2) for i in range(37)]  # 1.00 .. 10.00
+    # Sweep m from 1.0 to 8.0 in steps of 0.25
+    m_range = [round(1.0 + 0.25 * i, 2) for i in range(29)]  # 1.00 .. 8.00
 
     # Test multiple n values — larger n shows sharper transition but DPLL is exponential
-    n_values = [10, 20, 50]
+    n_values = [50, 75, 100]
     trials = 50
 
     results = experiment(n_values, m_range, trials)
     plot_results(results)
+
+    # ------------------------------------------------------------------
+    # Precise phase-transition experiment (finer steps)
+    # ------------------------------------------------------------------
+    print("\n" + "=" * 50)
+    print("  PRECISE PHASE-TRANSITION EXPERIMENT")
+    print("=" * 50)
+
+    m_range_precise = [round(1.0 + 0.05 * i, 2) for i in range(141)]  # 1.00 .. 8.00
+    results_precise = experiment(n_values, m_range_precise, trials)
+    plot_results(results_precise, filename="sat_phase_transition_precise.png")
