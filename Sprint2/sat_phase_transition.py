@@ -3,6 +3,8 @@
 """
 
 import random
+import time
+import matplotlib.pyplot as plt
 from pysat.solvers import Solver
 
 
@@ -119,7 +121,107 @@ def pysat_solve(clauses):
     return result
 
 
+def experiment(n_values, m_range, trials, use_pysat=False):
+    """
+    Run the phase-transition experiment.
+
+    For each n in n_values and each m in m_range, generate `trials` random
+    3-CNF formulas and solve them. Record the fraction satisfiable and the
+    average solve time.
+
+    Args:
+        n_values:  List of variable counts to test.
+        m_range:   List/array of clause-to-variable ratios.
+        trials:    Number of random instances per (n, m) pair.
+        use_pysat: If True, use PySAT solver instead of the custom DPLL.
+
+    Returns:
+        dict mapping each n to {
+            "m_values": list of m,
+            "sat_fracs": list of fraction satisfiable,
+            "avg_times": list of average solve time (seconds)
+        }
+    """
+    solver_fn = pysat_solve if use_pysat else solve
+    solver_name = "PySAT" if use_pysat else "DPLL"
+    results = {}
+
+    for n in n_values:
+        sat_fracs = []
+        avg_times = []
+
+        print(f"\n--- n = {n} ({solver_name}) ---")
+        print(f"{'m':>6}  {'%SAT':>6}  {'avg time (s)':>12}")
+        print("-" * 28)
+
+        for m in m_range:
+            sat_count = 0
+            total_time = 0.0
+
+            for _ in range(trials):
+                formula = generate(n, m)
+                t0 = time.time()
+                result = solver_fn(formula)
+                total_time += time.time() - t0
+                if result:
+                    sat_count += 1
+
+            frac = sat_count / trials
+            avg_t = total_time / trials
+            sat_fracs.append(frac)
+            avg_times.append(avg_t)
+            print(f"{m:6.2f}  {frac:6.2%}  {avg_t:12.6f}")
+
+        results[n] = {
+            "m_values": list(m_range),
+            "sat_fracs": sat_fracs,
+            "avg_times": avg_times,
+        }
+
+    return results
+
+
+def plot_results(results, filename="sat_phase_transition.png"):
+    """
+    Plot fraction satisfiable and average solve time vs m for each n.
+
+    Args:
+        results:  Output from experiment().
+        filename: Where to save the figure.
+    """
+    _fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+
+    for n, data in sorted(results.items()):
+        ms = data["m_values"]
+        ax1.plot(ms, data["sat_fracs"], marker="o", markersize=3, label=f"n={n}")
+        ax2.plot(ms, data["avg_times"], marker="o", markersize=3, label=f"n={n}")
+
+    # Theoretical threshold line
+    ax1.axvline(x=4.26, color="red", linestyle="--", alpha=0.7, label="m ≈ 4.26")
+    ax2.axvline(x=4.26, color="red", linestyle="--", alpha=0.7, label="m ≈ 4.26")
+
+    ax1.set_xlabel("Clause-to-variable ratio (m)")
+    ax1.set_ylabel("Fraction satisfiable")
+    ax1.set_title("SAT Phase Transition")
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+
+    ax2.set_xlabel("Clause-to-variable ratio (m)")
+    ax2.set_ylabel("Average solve time (s)")
+    ax2.set_title("Solver Hardness (Computational Cost)")
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(filename, dpi=150)
+    print(f"\nPlot saved to {filename}")
+    plt.show()
+
+
 if __name__ == '__main__':
+    # ------------------------------------------------------------------
+    # Unit tests (existing)
+    # ------------------------------------------------------------------
     passed = 0
     failed = 0
 
@@ -133,37 +235,19 @@ if __name__ == '__main__':
             passed += 1
         print(f"  {status}: {name} -> {result} (expected {expected})")
 
-    # --- Manual tests on small, known instances ---
     print("=== Manual tests ===")
-
-    # Single clause, trivially SAT
     check("single clause [1,2,3]", [[1, 2, 3]], True)
-
-    # x must be true AND x must be false -> UNSAT
     check("1-var contradiction", [[1, 1, 1], [-1, -1, -1]], False)
-
-    # Two vars, all positive -> SAT (just set both true)
     check("all positive", [[1, 2, 1], [2, 1, 2]], True)
-
-    # Forced chain: x1=T, x2=T, x3=T ... all consistent
     check("unit chain SAT", [[1, 1, 1], [2, 2, 2], [3, 3, 3]], True)
-
-    # Forced values that conflict with a clause
-    # x1=T, x2=T forced, but clause requires all false
     check("forced UNSAT", [[1, 1, 1], [2, 2, 2], [-1, -1, -2]], False)
-
-    # Tautology clause (contains x and -x) is always SAT
     check("tautology clause", [[1, -1, 2]], True)
-
-    # Empty formula -> trivially SAT
     check("empty formula", [], True)
 
-    # --- Automated: compare solve() vs PySAT on random instances ---
     print("\n=== Random tests: solve() vs PySAT ===")
     n_tests = 100
     mismatches = 0
     for i in range(n_tests):
-        # Small instances near the phase transition for a mix of SAT/UNSAT
         n = 10
         m = random.uniform(2.0, 8.0)
         formula = generate(n, m)
@@ -175,7 +259,22 @@ if __name__ == '__main__':
             print(f"  MISMATCH test {i}: n={n}, m={m:.2f}, solve={ours}, pysat={ref}")
         else:
             passed += 1
-
     print(f"  {n_tests - mismatches}/{n_tests} random tests matched PySAT")
-
     print(f"\n=== Summary: {passed} passed, {failed} failed ===")
+
+    # ------------------------------------------------------------------
+    # Phase-transition experiment
+    # ------------------------------------------------------------------
+    print("\n" + "=" * 50)
+    print("  PHASE-TRANSITION EXPERIMENT")
+    print("=" * 50)
+
+    # Sweep m from 1.0 to 10.0 in steps of 0.25
+    m_range = [round(1.0 + 0.25 * i, 2) for i in range(37)]  # 1.00 .. 10.00
+
+    # Test multiple n values — larger n shows sharper transition but DPLL is exponential
+    n_values = [10, 20, 50]
+    trials = 50
+
+    results = experiment(n_values, m_range, trials)
+    plot_results(results)
