@@ -200,12 +200,15 @@ def plot_results(results, filename="sat_phase_transition.png"):
     ax1.axvline(x=4.26, color="red", linestyle="--", alpha=0.7, label="m ≈ 4.26")
     ax2.axvline(x=4.26, color="red", linestyle="--", alpha=0.7, label="m ≈ 4.26")
 
+    tick_positions = [x * 0.5 for x in range(2, 17)]  # 1.0, 1.5, ..., 8.0
+    ax1.set_xticks(tick_positions)
     ax1.set_xlabel("Clause-to-variable ratio (m)")
     ax1.set_ylabel("Fraction satisfiable")
     ax1.set_title("SAT Phase Transition")
     ax1.legend()
     ax1.grid(True, alpha=0.3)
 
+    ax2.set_xticks(tick_positions)
     ax2.set_xlabel("Clause-to-variable ratio (m)")
     ax2.set_ylabel("Average solve time (s)")
     ax2.set_title("Solver Hardness (Computational Cost)")
@@ -262,30 +265,28 @@ if __name__ == '__main__':
     print(f"  {n_tests - mismatches}/{n_tests} random tests matched PySAT")
     print(f"\n=== Summary: {passed} passed, {failed} failed ===")
 
-    # ------------------------------------------------------------------
-    # Phase-transition experiment
-    # ------------------------------------------------------------------
-    print("\n" + "=" * 50)
-    print("  PHASE-TRANSITION EXPERIMENT")
-    print("=" * 50)
-
-    # Sweep m from 1.0 to 8.0 in steps of 0.25
-    m_range = [round(1.0 + 0.25 * i, 2) for i in range(29)]  # 1.00 .. 8.00
-
-    # Test multiple n values — larger n shows sharper transition but DPLL is exponential
-    n_values = [50, 75, 100]
-    trials = 50
-
-    results = experiment(n_values, m_range, trials)
-    plot_results(results)
+    # Sweep m from 1.0 to 8.0 in steps of 0.5
+    m_range = [round(1.0 + 0.5 * i, 2) for i in range(15)]  # 1.0, 1.5, ..., 8.0
+    trials = 25
 
     # ------------------------------------------------------------------
-    # Precise phase-transition experiment (finer steps)
+    # Phase-transition experiment: n = 10, 25, 50
     # ------------------------------------------------------------------
     print("\n" + "=" * 50)
-    print("  PRECISE PHASE-TRANSITION EXPERIMENT")
+    print("  PHASE-TRANSITION EXPERIMENT (n = 10, 25, 50)")
     print("=" * 50)
 
-    m_range_precise = [round(1.0 + 0.05 * i, 2) for i in range(141)]  # 1.00 .. 8.00
-    results_precise = experiment(n_values, m_range_precise, trials)
-    plot_results(results_precise, filename="sat_phase_transition_precise.png")
+    n_values_small = [10, 25, 50]
+    results_small = experiment(n_values_small, m_range, trials)
+    plot_results(results_small)
+
+    # ------------------------------------------------------------------
+    # Phase-transition experiment: n = 50, 75, 100
+    # ------------------------------------------------------------------
+    print("\n" + "=" * 50)
+    print("  PHASE-TRANSITION EXPERIMENT (n = 50, 75, 100)")
+    print("=" * 50)
+
+    n_values_large = [50, 75, 100]
+    results_large = experiment(n_values_large, m_range, trials)
+    plot_results(results_large, filename="sat_phase_transition_precise.png")
