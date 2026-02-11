@@ -466,7 +466,12 @@ def _build_solution(
     states_explored: int,
     level: Level,
 ) -> Solution:
-    """Trace back through came_from to build the solution."""
+    """Trace back through came_from to build the solution.
+
+    The search stores walk paths from normalized player positions (for state
+    deduplication).  Here we recompute each walk path from the actual player
+    position so that to_moves() produces a valid replay sequence.
+    """
     pushes: list[PushAction] = []
     state = goal_state
     while state in came_from:
@@ -474,6 +479,25 @@ def _build_solution(
         pushes.append(action)
         state = prev_state
     pushes.reverse()
+
+    # Recompute walk paths from actual player positions
+    actual_player = level.initial_player
+    current_boxes = level.initial_boxes
+    for push in pushes:
+        # The push position is one step behind the box in the push direction
+        push_pos = (push.box_from[0] - push.direction.dr,
+                    push.box_from[1] - push.direction.dc)
+        _, parent_map = _player_reachable(actual_player, current_boxes, level)
+        if actual_player == push_pos:
+            push.player_path = [actual_player]
+        else:
+            push.player_path = _reconstruct_path(
+                parent_map, actual_player, push_pos
+            )
+        # After pushing, the player stands where the box was
+        actual_player = push.box_from
+        current_boxes = (current_boxes - {push.box_from}) | {push.box_to}
+
     return Solution(pushes=pushes, states_explored=states_explored)
 
 

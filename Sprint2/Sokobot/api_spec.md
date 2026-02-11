@@ -1,15 +1,74 @@
-# Sokobot Web API — Specification
+# Sokobot Web API — Interface Specification
 
-## Overview
+## 1. Problem
 
-A Flask web server that lets users select a built-in Sokoban puzzle, submit it to
-the A* solver, and receive the solution as a step-by-step sequence of moves.
+We have a working Sokoban solver (`solver.py`) that takes a level as text and
+returns a sequence of moves.  We need a web interface so a user can:
 
-The solver (`solver.py`) is a self-contained component.  The API layer's only job
-is to accept puzzle text, hand it to the solver, and return the result.  It never
-reaches into the solver's internals.
+1. Pick a pre-designed puzzle from a catalog
+2. Submit it to the solver
+3. Watch the solution play back move-by-move
 
-## Architecture
+## 2. Design Decisions
+
+### 2a. Submission format
+
+The solver's `parse_level()` already accepts a multi-line string in the standard
+Sokoban format (`#` wall, `@` player, `$` box, `.` goal, `*` box-on-goal,
+`+` player-on-goal).  We'll use this same string as the API's submission format
+— the front-end sends `{"level": "<level_text>"}` as JSON.
+
+**Why not send a grid array or coordinates?**  The text format is the universal
+Sokoban interchange format.  Using it directly means zero translation between
+what the front-end displays and what the solver accepts.  Encapsulation: the API
+layer doesn't need to know about walls, boxes, or goals — it just passes a
+string through.
+
+### 2b. Solution representation
+
+The solver returns a `Solution` object with a `.to_moves()` method that produces
+a flat list of single-character direction strings:
+
+- **lowercase** (`u`, `d`, `l`, `r`) = player walks without pushing
+- **UPPERCASE** (`U`, `D`, `L`, `R`) = player pushes a box in that direction
+
+The API returns this list directly.  The front-end replays it one step at a time.
+
+**Why a flat move list instead of push-only?**  The front-end needs to animate
+every player step, not just pushes.  A flat sequence of `[walk, walk, PUSH, walk,
+PUSH, ...]` is trivial to replay: for each move, shift the player; if uppercase,
+also shift the adjacent box.
+
+### 2c. Synchronous vs. asynchronous solving
+
+Harder puzzles (5 boxes) can take several seconds to solve.  A synchronous
+`POST /api/solve` would block the HTTP connection, and the user would see no
+feedback.
+
+**Design: async job pattern.**
+
+1. `POST /api/solve` — validates the level immediately, starts a background
+   thread, returns a `job_id`
+2. `GET /api/solve/<job_id>` — the front-end polls every 500ms to get progress
+   (`states_explored`) or the final result
+
+This keeps the UI responsive and lets us show a live state counter during search.
+
+### 2d. Encapsulation boundary
+
+The server (`app.py`) only touches these from the solver:
+
+| Import | Type | Usage |
+|--------|------|-------|
+| `parse_level(text)` | function | Validate input; get `Level` object |
+| `solve_level(level, ...)` | function | Run A*; get `Solution \| None` |
+| `Solution.to_moves()` | method | Convert result to move list |
+| `Solution.pushes` | attribute | Count of pushes (for display) |
+| `Solution.states_explored` | attribute | Search stats (for display) |
+
+The server **never** imports `State`, `PushAction`, `_heuristic`, or any private
+function.  The solver **never** imports Flask.  `puzzles.py` is a pure data
+module — just a dict of `name -> level_text`.
 
 ```
 ┌──────────────────┐         ┌──────────────────┐        ┌─────────────┐
@@ -21,134 +80,85 @@ reaches into the solver's internals.
 └──────────────────┘         └──────────────────┘        └─────────────┘
 ```
 
-The solver exposes two functions the server uses:
-
-| Function | Purpose |
-|----------|---------|
-| `parse_level(text) → Level` | Validate + parse; raises `ValueError` on bad input |
-| `solve_level(level, ..., progress_callback) → Solution \| None` | Run A*; returns `None` if unsolvable |
-
-And `Solution` exposes:
-- `.pushes` — list of `PushAction` (length = number of pushes)
-- `.states_explored` — int
-- `.to_moves()` — flat list of direction strings for animation
-
-The server also imports `puzzles.py` for the built-in puzzle catalog.
-
 ---
 
-## Endpoints
+## 3. Endpoints
 
 ### `GET /`
 
-Serves `static/index.html`.
+Serves `static/index.html` (the single-page front-end).
 
 ### `GET /api/levels`
 
-Returns the list of built-in puzzles so the frontend can populate a dropdown.
+Returns the puzzle catalog so the front-end can populate a dropdown.
 
-**Response (200):**
+**Response 200:**
 ```json
 [
-  {
-    "name": "One Box",
-    "text": "####\n#. #\n#$ #\n#@ #\n####",
-    "boxes": 1
-  },
+  { "name": "One Box", "text": "####\n#. #\n#$ #\n#@ #\n####", "boxes": 1 },
+  { "name": "Two Box Line", "text": "...", "boxes": 2 },
   ...
 ]
 ```
 
 ### `POST /api/solve`
 
-Submits a puzzle to be solved.  Validation happens synchronously (parse the
-level text — does it have a player? matching box/goal counts?).  If valid,
-the solver runs in a **background thread** and the endpoint returns a job ID
-immediately.
+Submit a level for solving.  Validation is synchronous (fast); solving is async.
 
-**Request body:**
+**Request:**
 ```json
-{
-  "level": "####\n#. #\n#$ #\n#@ #\n####"
-}
+{ "level": "####\n#. #\n#$ #\n#@ #\n####" }
 ```
 
-**Response (200) — job started:**
+**Response 200 — job created:**
 ```json
-{
-  "status": "ok",
-  "job_id": "abc123"
-}
+{ "status": "ok", "job_id": "a1b2c3d4" }
 ```
 
-**Response (400) — invalid level:**
+**Response 400 — bad input:**
 ```json
-{
-  "status": "error",
-  "message": "Box count (2) != goal count (1)"
-}
+{ "status": "error", "message": "Level has no player (@)" }
 ```
 
 ### `GET /api/solve/<job_id>`
 
-Polls for the result of a solve job.
+Poll for result.
 
-**Response — still searching:**
+**Still searching:**
 ```json
-{
-  "status": "searching",
-  "states_explored": 42000
-}
+{ "status": "searching", "states_explored": 42000 }
 ```
 
-**Response — solved:**
+**Solved:**
 ```json
 {
   "status": "solved",
   "states_explored": 351,
   "pushes": 10,
-  "moves": ["d", "d", "r", "U", "l", "L", ...]
+  "moves": ["d", "d", "r", "U", "l", "L", "u", "U", "r", "R"]
 }
 ```
 
-Move encoding:
-- **lowercase** (`u`, `d`, `l`, `r`) = player walks (no push)
-- **UPPERCASE** (`U`, `D`, `L`, `R`) = player pushes a box in that direction
-
-This encoding comes directly from `Solution.to_moves()`.  The frontend
-replays the list one step at a time to animate the solution.
-
-**Response — no solution:**
+**No solution:**
 ```json
-{
-  "status": "no_solution"
-}
+{ "status": "no_solution" }
 ```
 
-**Response — error:**
+**Error (timeout, crash):**
 ```json
-{
-  "status": "error",
-  "message": "..."
-}
+{ "status": "error", "message": "Solver timed out." }
 ```
 
 ---
 
-## Encapsulation boundaries
+## 4. Implementation Plan
 
-- **`app.py`** never imports `State`, `PushAction`, `_heuristic`, or any
-  private solver function.  It only calls `parse_level`, `solve_level`,
-  and reads `Solution` attributes.
-- **`solver.py`** has no knowledge of Flask, JSON, or HTTP.
-- **`puzzles.py`** is a pure data module — a dict of name → level text.
+Build in this order, testing each step before moving on:
 
----
-
-## Implementation steps
-
-1. Write `app.py` with all four endpoints
-2. Write `static/index.html` — layout and structure
-3. Write `static/style.css` — board styling
-4. Write `static/script.js` — dropdown, solve button, polling, board rendering, solution playback
-5. Manual smoke test: start server, solve a puzzle, watch playback
+1. **`app.py` — `GET /api/levels`** — serve the puzzle list; test with curl
+2. **`app.py` — `POST /api/solve`** — sync validation + async job launch; test with curl
+3. **`app.py` — `GET /api/solve/<job_id>`** — poll loop; test full solve cycle with curl
+4. **`static/index.html`** — page structure: dropdown, solve button, board div, playback
+5. **`static/style.css`** — board grid styling, dark theme
+6. **`static/script.js`** — wire it all together: load puzzles, render board, poll solve, playback
+7. **Smoke test** — start server, solve each puzzle, verify playback

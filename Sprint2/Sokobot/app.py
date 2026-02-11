@@ -34,7 +34,7 @@ def index():
 
 
 # ---------------------------------------------------------------------------
-# API endpoints
+# Step 1: GET /api/levels — return the puzzle catalog
 # ---------------------------------------------------------------------------
 
 @app.route("/api/levels", methods=["GET"])
@@ -51,6 +51,10 @@ def get_levels():
         })
     return jsonify(levels)
 
+
+# ---------------------------------------------------------------------------
+# Step 2: POST /api/solve — validate synchronously, solve in background
+# ---------------------------------------------------------------------------
 
 @app.route("/api/solve", methods=["POST"])
 def start_solve():
@@ -120,6 +124,10 @@ def start_solve():
 
     return jsonify(status="ok", job_id=job_id)
 
+
+# ---------------------------------------------------------------------------
+# Step 3: GET /api/solve/<job_id> — poll for result
+# ---------------------------------------------------------------------------
 
 @app.route("/api/solve/<job_id>", methods=["GET"])
 def poll_solve(job_id):

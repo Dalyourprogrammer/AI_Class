@@ -1,6 +1,9 @@
 // ── Sokobot frontend ──────────────────────────────────────────
-// Handles: puzzle loading, board rendering, solve polling,
-// and step-by-step solution playback.
+// Built incrementally:
+//   Step A: Load puzzles from API, populate dropdown
+//   Step B: Parse level text, render board grid
+//   Step C: Submit solve, poll for result, show status
+//   Step D: Playback controls (step, play/pause, speed)
 
 "use strict";
 
@@ -21,14 +24,12 @@ const stepCounter   = document.getElementById("step-counter");
 // ── State ─────────────────────────────────────────────────────
 let puzzles      = [];      // loaded from /api/levels
 let currentLevel = null;    // raw level text
+let boardState   = null;    // { width, height, walls, goals, boxes, player }
 let solution     = null;    // { moves, pushes, states_explored }
 let stepIndex    = 0;       // current playback position
 let playing      = false;
 let playTimer    = null;
 let pollTimer    = null;
-
-// Board state: rebuilt from level text + applied moves
-let boardState = null;  // { rows, player, boxes, goals, walls, width, height }
 
 // ── Direction deltas ──────────────────────────────────────────
 const DELTA = {
@@ -36,30 +37,10 @@ const DELTA = {
   U: [-1, 0], D: [1, 0], L: [0, -1], R: [0, 1],
 };
 
-// ── Initialisation ────────────────────────────────────────────
-loadPuzzles();
+// ══════════════════════════════════════════════════════════════
+// STEP A: Load puzzles from API, populate dropdown
+// ══════════════════════════════════════════════════════════════
 
-puzzleSelect.addEventListener("change", () => {
-  const idx = puzzleSelect.value;
-  if (idx === "") return;
-  currentLevel = puzzles[idx].text;
-  stopPlayback();
-  solution = null;
-  hideStatus();
-  playbackDiv.classList.add("hidden");
-  boardState = parseLevel(currentLevel);
-  renderBoard();
-  solveBtn.disabled = false;
-});
-
-solveBtn.addEventListener("click", startSolve);
-resetBtn.addEventListener("click", () => goToStep(0));
-stepBackBtn.addEventListener("click", () => goToStep(stepIndex - 1));
-stepFwdBtn.addEventListener("click", () => goToStep(stepIndex + 1));
-endBtn.addEventListener("click", () => goToStep(solution.moves.length));
-playBtn.addEventListener("click", togglePlay);
-
-// ── Load puzzles from API ─────────────────────────────────────
 async function loadPuzzles() {
   try {
     const res = await fetch("/api/levels");
@@ -76,7 +57,23 @@ async function loadPuzzles() {
   }
 }
 
-// ── Parse level text into board state ─────────────────────────
+puzzleSelect.addEventListener("change", () => {
+  const idx = puzzleSelect.value;
+  if (idx === "") return;
+  currentLevel = puzzles[idx].text;
+  stopPlayback();
+  solution = null;
+  solveBtn.disabled = false;
+  hideStatus();
+  playbackDiv.classList.add("hidden");
+  boardState = parseLevel(currentLevel);
+  renderBoard();
+});
+
+// ══════════════════════════════════════════════════════════════
+// STEP B: Parse level text, render board as CSS grid
+// ══════════════════════════════════════════════════════════════
+
 function parseLevel(text) {
   const lines = text.split("\n");
   const height = lines.length;
@@ -101,7 +98,6 @@ function parseLevel(text) {
   return { width, height, walls, goals, boxes, player };
 }
 
-// ── Render the board to the DOM ───────────────────────────────
 function renderBoard() {
   if (!boardState) return;
   const { width, height, walls, goals, boxes, player } = boardState;
@@ -109,8 +105,7 @@ function renderBoard() {
   boardDiv.style.gridTemplateColumns = `repeat(${width}, 48px)`;
   boardDiv.innerHTML = "";
 
-  // Build a set of "interior" cells for display purposes
-  // (cells that are walls or reachable from the player)
+  // Find interior cells (walls + flood-fill from player)
   const interior = new Set([...walls]);
   computeInterior(interior, boardState);
 
@@ -179,7 +174,12 @@ function computeInterior(interior, state) {
   }
 }
 
-// ── Solve ─────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// STEP C: Submit solve request, poll for result
+// ══════════════════════════════════════════════════════════════
+
+solveBtn.addEventListener("click", startSolve);
+
 async function startSolve() {
   if (!currentLevel) return;
   stopPlayback();
@@ -228,9 +228,9 @@ function pollForResult(jobId) {
 
       if (data.status === "solved") {
         solution = data;
+        stepIndex = 0;
         showStatus("solved",
           `Solved in ${data.pushes} pushes (${data.states_explored.toLocaleString()} states explored)`);
-        stepIndex = 0;
         boardState = parseLevel(currentLevel);
         renderBoard();
         playbackDiv.classList.remove("hidden");
@@ -249,7 +249,21 @@ function pollForResult(jobId) {
   }, 500);
 }
 
-// ── Playback ──────────────────────────────────────────────────
+function updateStepCounter() {
+  if (!solution) return;
+  stepCounter.textContent = `Step ${stepIndex} / ${solution.moves.length}`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// STEP D: Playback — step through moves, animate solution
+// ══════════════════════════════════════════════════════════════
+
+resetBtn.addEventListener("click", () => goToStep(0));
+stepBackBtn.addEventListener("click", () => goToStep(stepIndex - 1));
+stepFwdBtn.addEventListener("click", () => goToStep(stepIndex + 1));
+endBtn.addEventListener("click", () => goToStep(solution.moves.length));
+playBtn.addEventListener("click", togglePlay);
+
 function goToStep(n) {
   if (!solution) return;
   n = Math.max(0, Math.min(n, solution.moves.length));
@@ -276,7 +290,7 @@ function applyMove(state, move) {
   const isPush = move === move.toUpperCase();
 
   if (isPush) {
-    // Push: move the box too
+    // Push: move the box one step further in the same direction
     const boxTarget = `${nr + dr},${nc + dc}`;
     state.boxes.delete(newPlayerKey);
     state.boxes.add(boxTarget);
@@ -315,11 +329,6 @@ function stopPlayback() {
   playBtn.textContent = "\u25B6";  // play icon
 }
 
-function updateStepCounter() {
-  if (!solution) return;
-  stepCounter.textContent = `Step ${stepIndex} / ${solution.moves.length}`;
-}
-
 // ── Status helpers ────────────────────────────────────────────
 function showStatus(type, message) {
   statusDiv.textContent = message;
@@ -329,3 +338,6 @@ function showStatus(type, message) {
 function hideStatus() {
   statusDiv.className = "status hidden";
 }
+
+// ── Init ──────────────────────────────────────────────────────
+loadPuzzles();
