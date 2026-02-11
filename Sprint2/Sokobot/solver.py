@@ -273,33 +273,47 @@ def _heuristic(boxes: frozenset[Pos], goals: frozenset[Pos]) -> int:
 # ---------------------------------------------------------------------------
 
 def _has_freeze_deadlock(boxes: frozenset[Pos], level: Level) -> bool:
-    """Check if any box is frozen (can't move on either axis) and not on a goal."""
-    box_set = set(boxes)
-    frozen: set[Pos] = set()
+    """Check for freeze deadlocks: groups of boxes that mutually prevent
+    each other from moving, with at least one box not on a goal.
 
+    A box is "stuck" if all 4 of its push target cells are occupied by
+    a wall or another box.  A stuck box might become unstuck if an adjacent
+    box moves, so we iteratively remove boxes from the stuck set if any of
+    their box-neighbors is NOT stuck (i.e., could potentially move).  The
+    remaining set after convergence is a truly frozen cluster.
+    """
+    box_set = set(boxes)
+
+    # Step 1: find all boxes where every push target is wall or box
+    stuck: set[Pos] = set()
+    for box in box_set:
+        r, c = box
+        if all(
+            (r + d.dr, c + d.dc) in level.walls or
+            (r + d.dr, c + d.dc) in box_set
+            for d in DIRS
+        ):
+            stuck.add(box)
+
+    # Step 2: iteratively remove boxes that have a non-stuck box neighbor
+    # (that neighbor could move, potentially freeing this box)
     changed = True
     while changed:
         changed = False
-        for box in box_set:
-            if box in frozen:
-                continue
+        to_remove: set[Pos] = set()
+        for box in stuck:
             r, c = box
+            for d in DIRS:
+                nb = (r + d.dr, c + d.dc)
+                if nb in box_set and nb not in stuck:
+                    to_remove.add(box)
+                    break
+        if to_remove:
+            stuck -= to_remove
+            changed = True
 
-            def blocked(pos: Pos) -> bool:
-                return pos in level.walls or pos in frozen
-
-            h_frozen = blocked((r, c - 1)) and blocked((r, c + 1))
-            v_frozen = blocked((r - 1, c)) and blocked((r + 1, c))
-
-            if h_frozen and v_frozen:
-                frozen.add(box)
-                changed = True
-
-    # If any frozen box is not on a goal, it's a deadlock
-    for box in frozen:
-        if box not in level.goals:
-            return True
-    return False
+    # Any remaining stuck box not on a goal is a deadlock
+    return any(b not in level.goals for b in stuck)
 
 
 # ---------------------------------------------------------------------------

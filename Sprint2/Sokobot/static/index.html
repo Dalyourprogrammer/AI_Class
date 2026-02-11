@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sokobot — Sokoban Solver</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Sokobot</h1>
+    <p class="subtitle">A* Sokoban Solver</p>
+
+    <!-- Puzzle selector -->
+    <div class="controls">
+      <label for="puzzle-select">Puzzle:</label>
+      <select id="puzzle-select">
+        <option value="">Loading...</option>
+      </select>
+      <button id="solve-btn" disabled>Solve</button>
+    </div>
+
+    <!-- Status bar -->
+    <div id="status" class="status hidden"></div>
+
+    <!-- Game board -->
+    <div id="board" class="board"></div>
+
+    <!-- Playback controls (shown after solve) -->
+    <div id="playback" class="playback hidden">
+      <button id="reset-btn" title="Reset">&#x23EE;</button>
+      <button id="step-back-btn" title="Step back">&#x23EA;</button>
+      <button id="play-btn" title="Play / Pause">&#x25B6;</button>
+      <button id="step-fwd-btn" title="Step forward">&#x23E9;</button>
+      <button id="end-btn" title="Jump to end">&#x23ED;</button>
+      <div class="speed-control">
+        <label for="speed">Speed:</label>
+        <input type="range" id="speed" min="1" max="20" value="5">
+      </div>
+      <span id="step-counter" class="step-counter"></span>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <span><span class="swatch wall"></span> Wall</span>
+      <span><span class="swatch floor"></span> Floor</span>
+      <span><span class="swatch goal"></span> Goal</span>
+      <span><span class="swatch box"></span> Box</span>
+      <span><span class="swatch box-on-goal"></span> Box on Goal</span>
+      <span><span class="swatch player"></span> Player</span>
+    </div>
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
