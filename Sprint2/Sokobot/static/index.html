@@ -11,13 +11,40 @@
     <h1>Sokobot</h1>
     <p class="subtitle">A* Sokoban Solver</p>
 
-    <!-- Puzzle selector -->
-    <div class="controls">
+    <!-- Mode toggle -->
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="mode-load">Load Puzzle</button>
+      <button class="mode-btn" id="mode-create">Create Puzzle</button>
+    </div>
+
+    <!-- Load mode: Puzzle selector -->
+    <div class="controls" id="load-controls">
       <label for="puzzle-select">Puzzle:</label>
       <select id="puzzle-select">
         <option value="">Loading...</option>
       </select>
       <button id="solve-btn" disabled>Solve</button>
+    </div>
+
+    <!-- Editor mode: Design controls -->
+    <div id="editor-controls" class="editor-controls hidden">
+      <div class="editor-size">
+        <label>Width:</label>
+        <input type="number" id="editor-width" min="4" max="16" value="7">
+        <label>Height:</label>
+        <input type="number" id="editor-height" min="4" max="16" value="7">
+        <button id="new-grid-btn">New Grid</button>
+      </div>
+      <div class="tool-palette">
+        <button class="tool-btn" data-tool="wall" title="Wall">&#x2B1B; Wall</button>
+        <button class="tool-btn" data-tool="floor" title="Floor">&#x2B1C; Floor</button>
+        <button class="tool-btn active" data-tool="goal" title="Goal">&middot; Goal</button>
+        <button class="tool-btn" data-tool="box" title="Box">&#x1F4E6; Box</button>
+        <button class="tool-btn" data-tool="player" title="Player">&#x1F464; Player</button>
+        <button class="tool-btn" data-tool="eraser" title="Eraser">&#x1F6AB; Eraser</button>
+      </div>
+      <div id="editor-validation" class="editor-validation"></div>
+      <button id="editor-solve-btn" disabled>Solve My Puzzle</button>
     </div>
 
     <!-- Status bar -->

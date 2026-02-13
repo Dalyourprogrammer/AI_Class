@@ -21,6 +21,17 @@ const endBtn        = document.getElementById("end-btn");
 const speedSlider   = document.getElementById("speed");
 const stepCounter   = document.getElementById("step-counter");
 
+// Editor DOM refs
+const modeLoadBtn      = document.getElementById("mode-load");
+const modeCreateBtn    = document.getElementById("mode-create");
+const loadControls     = document.getElementById("load-controls");
+const editorControls   = document.getElementById("editor-controls");
+const editorWidthIn    = document.getElementById("editor-width");
+const editorHeightIn   = document.getElementById("editor-height");
+const newGridBtn       = document.getElementById("new-grid-btn");
+const editorValidation = document.getElementById("editor-validation");
+const editorSolveBtn   = document.getElementById("editor-solve-btn");
+
 // ── State ─────────────────────────────────────────────────────
 let puzzles      = [];      // loaded from /api/levels
 let currentLevel = null;    // raw level text
@@ -30,6 +41,12 @@ let stepIndex    = 0;       // current playback position
 let playing      = false;
 let playTimer    = null;
 let pollTimer    = null;
+
+// Editor state
+let editorMode    = false;
+let editorGrid    = null;   // 2D array of { base, entity }
+let selectedTool  = "goal";
+let isDrawing     = false;
 
 // ── Direction deltas ──────────────────────────────────────────
 const DELTA = {
@@ -180,12 +197,16 @@ function computeInterior(interior, state) {
 
 solveBtn.addEventListener("click", startSolve);
 
+function getActiveSolveBtn() {
+  return editorMode ? editorSolveBtn : solveBtn;
+}
+
 async function startSolve() {
   if (!currentLevel) return;
   stopPlayback();
   solution = null;
   playbackDiv.classList.add("hidden");
-  solveBtn.disabled = true;
+  getActiveSolveBtn().disabled = true;
   showStatus("searching", "Submitting puzzle...");
 
   try {
@@ -198,7 +219,7 @@ async function startSolve() {
 
     if (data.status === "error") {
       showStatus("error", data.message);
-      solveBtn.disabled = false;
+      getActiveSolveBtn().disabled = false;
       return;
     }
 
@@ -206,7 +227,7 @@ async function startSolve() {
     pollForResult(data.job_id);
   } catch (e) {
     showStatus("error", "Network error.");
-    solveBtn.disabled = false;
+    getActiveSolveBtn().disabled = false;
   }
 }
 
@@ -232,6 +253,7 @@ function pollForResult(jobId) {
         showStatus("solved",
           `Solved in ${data.pushes} pushes (${data.states_explored.toLocaleString()} states explored)`);
         boardState = parseLevel(currentLevel);
+        boardDiv.classList.remove("editable");
         renderBoard();
         playbackDiv.classList.remove("hidden");
         updateStepCounter();
@@ -240,11 +262,11 @@ function pollForResult(jobId) {
       } else {
         showStatus("error", data.message || "Unknown error.");
       }
-      solveBtn.disabled = false;
+      getActiveSolveBtn().disabled = false;
     } catch (e) {
       clearInterval(pollTimer);
       showStatus("error", "Lost connection while polling.");
-      solveBtn.disabled = false;
+      getActiveSolveBtn().disabled = false;
     }
   }, 500);
 }
@@ -338,6 +360,218 @@ function showStatus(type, message) {
 function hideStatus() {
   statusDiv.className = "status hidden";
 }
+
+// ══════════════════════════════════════════════════════════════
+// STEP E: Puzzle Editor — mode switching, grid, tools, validation
+// ══════════════════════════════════════════════════════════════
+
+// ── Mode switching ───────────────────────────────────────────
+modeLoadBtn.addEventListener("click", () => switchMode(false));
+modeCreateBtn.addEventListener("click", () => switchMode(true));
+
+function switchMode(toEditor) {
+  editorMode = toEditor;
+  stopPlayback();
+  solution = null;
+  playbackDiv.classList.add("hidden");
+  hideStatus();
+
+  modeLoadBtn.classList.toggle("active", !toEditor);
+  modeCreateBtn.classList.toggle("active", toEditor);
+  loadControls.classList.toggle("hidden", toEditor);
+  editorControls.classList.toggle("hidden", !toEditor);
+  boardDiv.classList.toggle("editable", toEditor);
+
+  if (toEditor) {
+    if (!editorGrid) initEditorGrid(+editorWidthIn.value, +editorHeightIn.value);
+    renderEditorBoard();
+    updateValidation();
+  } else {
+    // Restore load-mode board if a puzzle was selected
+    if (currentLevel) {
+      boardState = parseLevel(currentLevel);
+      renderBoard();
+    } else {
+      boardDiv.innerHTML = "";
+    }
+  }
+}
+
+// ── Editor grid init ─────────────────────────────────────────
+newGridBtn.addEventListener("click", () => {
+  initEditorGrid(+editorWidthIn.value, +editorHeightIn.value);
+  stopPlayback();
+  solution = null;
+  playbackDiv.classList.add("hidden");
+  hideStatus();
+  renderEditorBoard();
+  updateValidation();
+});
+
+function initEditorGrid(w, h) {
+  w = Math.max(4, Math.min(16, w));
+  h = Math.max(4, Math.min(16, h));
+  editorGrid = [];
+  for (let r = 0; r < h; r++) {
+    const row = [];
+    for (let c = 0; c < w; c++) {
+      const isBorder = (r === 0 || r === h - 1 || c === 0 || c === w - 1);
+      row.push({ base: isBorder ? "wall" : "floor", entity: "none" });
+    }
+    editorGrid.push(row);
+  }
+}
+
+// ── Render editor board ──────────────────────────────────────
+function renderEditorBoard() {
+  if (!editorGrid) return;
+  const h = editorGrid.length;
+  const w = editorGrid[0].length;
+
+  boardDiv.style.gridTemplateColumns = `repeat(${w}, 48px)`;
+  boardDiv.innerHTML = "";
+
+  for (let r = 0; r < h; r++) {
+    for (let c = 0; c < w; c++) {
+      const cell = document.createElement("div");
+      cell.className = "cell " + editorCellClass(editorGrid[r][c]);
+      cell.textContent = editorCellText(editorGrid[r][c]);
+
+      cell.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        isDrawing = true;
+        applyTool(r, c);
+      });
+      cell.addEventListener("mouseenter", () => {
+        if (isDrawing && selectedTool !== "player") applyTool(r, c);
+      });
+
+      boardDiv.appendChild(cell);
+    }
+  }
+}
+
+function editorCellClass(cell) {
+  if (cell.base === "wall") return "wall";
+  if (cell.entity === "player" && cell.base === "goal") return "player-on-goal";
+  if (cell.entity === "player") return "player";
+  if (cell.entity === "box" && cell.base === "goal") return "box-on-goal";
+  if (cell.entity === "box") return "box";
+  if (cell.base === "goal") return "goal";
+  return "floor";
+}
+
+function editorCellText(cell) {
+  if (cell.base === "wall") return "";
+  if (cell.entity === "player") return "@";
+  if (cell.entity === "box") return "\u2B1B";
+  if (cell.base === "goal" && cell.entity === "none") return "\u00B7";
+  return "";
+}
+
+// ── Tool selection ───────────────────────────────────────────
+document.querySelectorAll(".tool-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tool-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    selectedTool = btn.dataset.tool;
+  });
+});
+
+// ── Apply tool to cell ───────────────────────────────────────
+function applyTool(r, c) {
+  const cell = editorGrid[r][c];
+
+  switch (selectedTool) {
+    case "wall":
+      cell.base = "wall";
+      cell.entity = "none";
+      break;
+    case "floor":
+      cell.base = "floor";
+      // keep entity as-is
+      break;
+    case "goal":
+      cell.base = (cell.base === "goal") ? "floor" : "goal";
+      // keep entity as-is
+      break;
+    case "box":
+      if (cell.entity === "box") {
+        cell.entity = "none";
+      } else {
+        if (cell.base === "wall") cell.base = "floor";
+        cell.entity = "box";
+      }
+      break;
+    case "player":
+      // Remove player from all other cells first
+      for (const row of editorGrid)
+        for (const c2 of row)
+          if (c2.entity === "player") c2.entity = "none";
+      if (cell.base === "wall") cell.base = "floor";
+      cell.entity = "player";
+      break;
+    case "eraser":
+      cell.base = "floor";
+      cell.entity = "none";
+      break;
+  }
+
+  renderEditorBoard();
+  updateValidation();
+}
+
+// Global mouseup to stop drag-painting
+document.addEventListener("mouseup", () => { isDrawing = false; });
+
+// ── Live validation ──────────────────────────────────────────
+function updateValidation() {
+  if (!editorGrid) return;
+  let boxes = 0, goals = 0, hasPlayer = false;
+
+  for (const row of editorGrid) {
+    for (const cell of row) {
+      if (cell.entity === "box") boxes++;
+      if (cell.entity === "player") hasPlayer = true;
+      if (cell.base === "goal") goals++;
+    }
+  }
+
+  const problems = [];
+  if (!hasPlayer) problems.push("Need a player");
+  if (boxes === 0) problems.push("Need at least 1 box");
+  if (goals === 0) problems.push("Need at least 1 goal");
+  if (boxes !== goals && boxes > 0 && goals > 0)
+    problems.push(`Box count (${boxes}) must equal goal count (${goals})`);
+
+  if (problems.length === 0) {
+    editorValidation.textContent = `Boxes: ${boxes} | Goals: ${goals} | Player: Yes \u2014 Ready to solve!`;
+    editorValidation.className = "editor-validation valid";
+    editorSolveBtn.disabled = false;
+  } else {
+    editorValidation.textContent = problems.join(" \u2022 ");
+    editorValidation.className = "editor-validation invalid";
+    editorSolveBtn.disabled = true;
+  }
+}
+
+// ── Convert editor grid to solver text ───────────────────────
+function editorGridToText() {
+  const CHAR_MAP = {
+    "wall|none":   "#", "wall|box": "#", "wall|player": "#",
+    "floor|none":  " ", "floor|box": "$", "floor|player": "@",
+    "goal|none":   ".", "goal|box":  "*", "goal|player":  "+",
+  };
+  return editorGrid.map(row =>
+    row.map(cell => CHAR_MAP[`${cell.base}|${cell.entity}`] || " ").join("")
+  ).join("\n");
+}
+
+// ── Editor solve button ──────────────────────────────────────
+editorSolveBtn.addEventListener("click", () => {
+  currentLevel = editorGridToText();
+  startSolve();
+});
 
 // ── Init ──────────────────────────────────────────────────────
 loadPuzzles();
