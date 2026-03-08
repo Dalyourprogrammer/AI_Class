@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Minimax</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <h1>Minimax</h1>
+  <p class="subtitle">Turn-based combat — Minimax AI opponent</p>
+
+  <!-- HUD -->
+  <div class="hud">
+    <div class="hud-panel">
+      <span class="hud-label player">🧙 You</span>
+      <div class="hp-bar-bg">
+        <div class="hp-bar-fill" id="player-hp-fill" style="width:100%;background:#66bb6a;"></div>
+      </div>
+      <span class="hp-text" id="player-hp-text">5 / 5</span>
+      <span id="player-potion" style="font-size:0.75rem;color:#80cbc4;">🧪 Potion</span>
+    </div>
+
+    <div class="hud-panel">
+      <span class="hud-label ai">🤖 AI</span>
+      <div class="hp-bar-bg">
+        <div class="hp-bar-fill" id="ai-hp-fill" style="width:100%;background:#66bb6a;"></div>
+      </div>
+      <span class="hp-text" id="ai-hp-text">5 / 5</span>
+      <span id="ai-potion" style="font-size:0.75rem;color:#80cbc4;">🧪 Potion</span>
+    </div>
+  </div>
+
+  <!-- Grid -->
+  <div class="grid-wrapper">
+    <div class="grid" id="grid"></div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <span>🧙 You</span>
+      <span>🤖 AI</span>
+      <span>🗿 Column</span>
+      <span style="color:#aed581;">■ Move here</span>
+      <span style="color:#ce93d8;">■ Dash here</span>
+    </div>
+  </div>
+
+  <!-- Phase indicator -->
+  <p class="phase-indicator" id="phase-indicator"></p>
+
+  <!-- Order Selection -->
+  <div id="order-panel" style="display:none;gap:12px;align-items:center;flex-direction:column;margin-bottom:4px;">
+    <span class="action-label">Choose your turn order</span>
+    <div style="display:flex;gap:12px;">
+      <button class="action-btn" id="btn-order-move" style="background:#546e7a;color:#fff;">
+        🚶 Move First<br><small style="font-weight:normal;font-size:0.7rem;">move, then act</small>
+      </button>
+      <button class="action-btn" id="btn-order-attack" style="background:#bf360c;color:#fff;">
+        ⚔️ Attack First<br><small style="font-weight:normal;font-size:0.7rem;">act, then move</small>
+      </button>
+    </div>
+  </div>
+
+  <!-- Action Panel -->
+  <div class="action-panel" id="action-panel" style="visibility:hidden;">
+    <span class="action-label">Choose Action</span>
+    <div class="action-buttons">
+      <button class="action-btn btn-fire-bolt" id="btn-fire-bolt" disabled>
+        ⚡ Fire Bolt<br><small style="font-weight:normal;font-size:0.7rem;">1 dmg, ranged</small>
+      </button>
+      <button class="action-btn btn-dagger" id="btn-dagger" disabled>
+        🗡️ Dagger<br><small style="font-weight:normal;font-size:0.7rem;">2 dmg, adjacent</small>
+      </button>
+      <button class="action-btn btn-heal" id="btn-heal" disabled>
+        🧪 Heal<br><small style="font-weight:normal;font-size:0.7rem;">+2 HP, one use</small>
+      </button>
+      <button class="action-btn btn-dash" id="btn-dash" disabled>
+        💨 Dash<br><small style="font-weight:normal;font-size:0.7rem;">+2 more steps</small>
+      </button>
+    </div>
+  </div>
+
+  <!-- Message -->
+  <div class="message-bar" id="message-bar">Loading...</div>
+
+  <!-- Move Log -->
+  <div class="move-log" id="move-log">
+    <div class="move-log-header">Turn Log</div>
+    <div class="move-log-entries" id="move-log-entries">
+      <span style="color:#555;font-size:0.8rem;">No moves yet.</span>
+    </div>
+  </div>
+
+  <!-- New Game -->
+  <button class="new-game-btn" id="new-game-btn">↺ New Game</button>
+
+  <!-- Rules summary -->
+  <details style="margin-top:20px;max-width:440px;color:#666;font-size:0.78rem;line-height:1.6;">
+    <summary style="cursor:pointer;color:#888;letter-spacing:1px;">Rules</summary>
+    <ul style="margin-top:8px;padding-left:20px;">
+      <li>Each turn: choose <strong>Move First</strong> or <strong>Attack First</strong>, then take 2 steps and pick an action.</li>
+      <li><strong>Fire Bolt</strong> — 1 damage if you share a row/column with no column blocking.</li>
+      <li><strong>Dagger</strong> — 2 damage if you're adjacent (dist 1). Must be chosen after moving.</li>
+      <li><strong>Heal Potion</strong> — restores 2 HP. One use per battle.</li>
+      <li><strong>Dash</strong> — move up to 2 more squares (click purple cell).</li>
+      <li>First to 0 HP loses. You go first.</li>
+    </ul>
+  </details>
+
+  <!-- Game Over Overlay -->
+  <div class="overlay" id="overlay">
+    <div class="overlay-box">
+      <div class="overlay-title win" id="overlay-title">Victory!</div>
+      <div class="overlay-sub" id="overlay-sub">You won!</div>
+      <button class="overlay-play-btn" id="overlay-play-btn">Play Again</button>
+    </div>
+  </div>
+
+  <script src="/static/game.js"></script>
+</body>
+</html>
