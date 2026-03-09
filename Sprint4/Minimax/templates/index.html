@@ -18,7 +18,7 @@
       <div class="hp-bar-bg">
         <div class="hp-bar-fill" id="player-hp-fill" style="width:100%;background:#66bb6a;"></div>
       </div>
-      <span class="hp-text" id="player-hp-text">5 / 5</span>
+      <span class="hp-text" id="player-hp-text">3 / 3</span>
       <span id="player-potion" style="font-size:0.75rem;color:#80cbc4;">🧪 Potion</span>
     </div>
 
@@ -27,7 +27,7 @@
       <div class="hp-bar-bg">
         <div class="hp-bar-fill" id="ai-hp-fill" style="width:100%;background:#66bb6a;"></div>
       </div>
-      <span class="hp-text" id="ai-hp-text">5 / 5</span>
+      <span class="hp-text" id="ai-hp-text">3 / 3</span>
       <span id="ai-potion" style="font-size:0.75rem;color:#80cbc4;">🧪 Potion</span>
     </div>
   </div>
@@ -48,19 +48,6 @@
 
   <!-- Phase indicator -->
   <p class="phase-indicator" id="phase-indicator"></p>
-
-  <!-- Order Selection -->
-  <div id="order-panel" style="display:none;gap:12px;align-items:center;flex-direction:column;margin-bottom:4px;">
-    <span class="action-label">Choose your turn order</span>
-    <div style="display:flex;gap:12px;">
-      <button class="action-btn" id="btn-order-move" style="background:#546e7a;color:#fff;">
-        🚶 Move First<br><small style="font-weight:normal;font-size:0.7rem;">move, then act</small>
-      </button>
-      <button class="action-btn" id="btn-order-attack" style="background:#bf360c;color:#fff;">
-        ⚔️ Attack First<br><small style="font-weight:normal;font-size:0.7rem;">act, then move</small>
-      </button>
-    </div>
-  </div>
 
   <!-- Action Panel -->
   <div class="action-panel" id="action-panel" style="visibility:hidden;">
@@ -99,12 +86,13 @@
   <details style="margin-top:20px;max-width:440px;color:#666;font-size:0.78rem;line-height:1.6;">
     <summary style="cursor:pointer;color:#888;letter-spacing:1px;">Rules</summary>
     <ul style="margin-top:8px;padding-left:20px;">
-      <li>Each turn: choose <strong>Move First</strong> or <strong>Attack First</strong>, then take 2 steps and pick an action.</li>
+      <li>Each turn has <strong>3 steps</strong>: move (0–2 squares), act, then move remaining squares.</li>
+      <li><strong>Split movement</strong> — e.g. move 1 step, attack, then move 1 more step.</li>
       <li><strong>Fire Bolt</strong> — 1 damage if you share a row/column with no column blocking.</li>
-      <li><strong>Dagger</strong> — 2 damage if you're adjacent (dist 1). Must be chosen after moving.</li>
+      <li><strong>Dagger</strong> — 2 damage if you're adjacent (dist 1) at attack time.</li>
       <li><strong>Heal Potion</strong> — restores 2 HP. One use per battle.</li>
-      <li><strong>Dash</strong> — move up to 2 more squares (click purple cell).</li>
-      <li>First to 0 HP loses. You go first.</li>
+      <li><strong>Dash</strong> — move up to 2 more squares after acting (click purple cell).</li>
+      <li>Both sides start with 3 HP. First to 0 HP loses. You go first.</li>
     </ul>
   </details>
 

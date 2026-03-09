@@ -1,5 +1,5 @@
 from game import (
-    GameState, COLUMNS, get_reachable_cells, get_valid_actions,
+    GameState, COLUMNS, MOVE_RANGE, get_reachable_with_dist, get_valid_actions,
     apply_turn, is_game_over, is_los_clear, manhattan, chebyshev
 )
 
@@ -47,33 +47,46 @@ def evaluate(state: GameState) -> int:
 
 
 def generate_moves(state: GameState):
-    """Yield all (move_to, action, dash_to, action_first) tuples for current actor."""
+    """Yield all (pre_move_to, action, post_move_to, dash_to) tuples for current actor.
+
+    Split movement: actor moves 0-MOVE_RANGE steps to pre_move_to, resolves action there,
+    then moves the remaining budget to post_move_to (or dashes to dash_to).
+    """
     actor = state.turn
     actor_pos = state.player_pos if actor == "player" else state.ai_pos
     opp_pos = state.ai_pos if actor == "player" else state.player_pos
+    has_potion = state.player_has_potion if actor == "player" else state.ai_has_potion
 
     blocked = COLUMNS | {opp_pos}
-    reachable = get_reachable_cells(actor_pos, 2, blocked)
-    reachable.add(actor_pos)  # staying in place is valid
+    # All positions reachable for first movement segment, keyed by min distance used
+    pre_dists = get_reachable_with_dist(actor_pos, MOVE_RANGE, blocked)
 
-    valid_actions = get_valid_actions(state, actor)
+    for pre_move_to, pre_dist in pre_dists.items():
+        remaining = MOVE_RANGE - pre_dist
 
-    for dest in reachable:
-        for action in valid_actions:
+        # Valid actions depend on position at the moment of acting (pre_move_to)
+        actions = ["fire_bolt"]
+        if chebyshev(pre_move_to, opp_pos) == 1:
+            actions.append("dagger")
+        if has_potion:
+            actions.append("heal")
+        actions.append("dash")
+
+        for action in actions:
             if action == "dash":
-                blocked2 = COLUMNS | {opp_pos}
-                secondary = get_reachable_cells(dest, 2, blocked2)
-                secondary.add(dest)
-                for dash_dest in secondary:
-                    yield (dest, "dash", dash_dest, False)
+                # Dash: MOVE_RANGE extra steps from pre_move_to (replaces second movement)
+                dash_cells = get_reachable_with_dist(pre_move_to, MOVE_RANGE, blocked)
+                for dash_to in dash_cells:
+                    yield (pre_move_to, "dash", None, dash_to)
             else:
-                # Try both orderings; minimax will pick the best
-                yield (dest, action, None, False)   # move first
-                yield (dest, action, None, True)    # attack first
+                # Second movement segment: up to `remaining` steps from pre_move_to
+                post_cells = get_reachable_with_dist(pre_move_to, remaining, blocked)
+                for post_move_to in post_cells:
+                    yield (pre_move_to, action, post_move_to, None)
 
 
 def minimax(state: GameState, depth: int, alpha: int, beta: int, maximizing: bool):
-    """Returns (score, best_move) where best_move is (move_to, action, dash_to)."""
+    """Returns (score, best_move) where best_move is (pre_move_to, action, post_move_to, dash_to)."""
     winner = is_game_over(state)
     if winner is not None or depth == 0:
         return evaluate(state), None
@@ -83,8 +96,8 @@ def minimax(state: GameState, depth: int, alpha: int, beta: int, maximizing: boo
     if maximizing:
         best_score = -WIN_SCORE * 2
         for move in generate_moves(state):
-            move_to, action, dash_to, action_first = move
-            next_state = apply_turn(state, move_to, action, dash_to, action_first)
+            pre_move_to, action, post_move_to, dash_to = move
+            next_state = apply_turn(state, pre_move_to, action, post_move_to, dash_to)
             score, _ = minimax(next_state, depth - 1, alpha, beta, False)
             if score > best_score:
                 best_score = score
@@ -96,8 +109,8 @@ def minimax(state: GameState, depth: int, alpha: int, beta: int, maximizing: boo
     else:
         best_score = WIN_SCORE * 2
         for move in generate_moves(state):
-            move_to, action, dash_to, action_first = move
-            next_state = apply_turn(state, move_to, action, dash_to, action_first)
+            pre_move_to, action, post_move_to, dash_to = move
+            next_state = apply_turn(state, pre_move_to, action, post_move_to, dash_to)
             score, _ = minimax(next_state, depth - 1, alpha, beta, True)
             if score < best_score:
                 best_score = score
@@ -109,8 +122,8 @@ def minimax(state: GameState, depth: int, alpha: int, beta: int, maximizing: boo
 
 
 def get_ai_move(state: GameState):
-    """Entry point: returns best (move_to, action, dash_to, action_first) for AI."""
+    """Entry point: returns best (pre_move_to, action, post_move_to, dash_to) for AI."""
     _, best_move = minimax(state, DEPTH, -WIN_SCORE * 2, WIN_SCORE * 2, True)
     if best_move is None:
-        return (state.ai_pos, "fire_bolt", None, False)
+        return (state.ai_pos, "fire_bolt", state.ai_pos, None)
     return best_move

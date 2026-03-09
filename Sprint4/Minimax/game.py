@@ -2,7 +2,8 @@ from dataclasses import dataclass, replace
 from collections import deque
 
 GRID_SIZE = 5
-MAX_HP = 5
+MAX_HP = 3
+MOVE_RANGE = 2
 COLUMNS = frozenset({(1, 1), (1, 3), (3, 1), (3, 3)})
 DIRECTIONS = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
@@ -57,6 +58,26 @@ def get_reachable_cells(from_pos: tuple, steps: int, blocked: frozenset) -> set:
                 frontier.append((npos, dist + 1))
 
     return reachable
+
+
+def get_reachable_with_dist(from_pos: tuple, max_steps: int, blocked: frozenset) -> dict:
+    """BFS: returns {pos: min_dist} for all cells reachable within max_steps, including from_pos (dist 0)."""
+    dists = {from_pos: 0}
+    frontier = deque([(from_pos, 0)])
+
+    while frontier:
+        pos, dist = frontier.popleft()
+        if dist == max_steps:
+            continue
+        r, c = pos
+        for dr, dc in DIRECTIONS:
+            nr, nc = r + dr, c + dc
+            npos = (nr, nc)
+            if in_bounds(nr, nc) and npos not in blocked and npos not in dists:
+                dists[npos] = dist + 1
+                frontier.append((npos, dist + 1))
+
+    return dists
 
 
 def is_los_clear(pos_a: tuple, pos_b: tuple) -> bool:
@@ -154,56 +175,42 @@ def _resolve_action(actor: str, action: str, actor_pos: tuple, opp_pos: tuple,
     return player_hp, ai_hp, player_has_potion, ai_has_potion
 
 
-def apply_turn(state: GameState, move_to: tuple, action: str,
-               dash_to: tuple = None, action_first: bool = False) -> GameState:
-    """Apply a full turn and return new state with turn flipped.
+def apply_turn(state: GameState, pre_move_to: tuple, action: str,
+               post_move_to: tuple = None, dash_to: tuple = None) -> GameState:
+    """Apply a full turn with split movement: move to pre_move_to, resolve action there,
+    then move to post_move_to (or dash_to for dash action). Returns new state with turn flipped.
 
-    action_first=True  → resolve action from pre-move position, then move.
-    action_first=False → move first, then resolve action (default).
-    Dash always grants extra movement after the base move regardless of order.
+    pre_move_to  — position where the actor is when they act (first movement segment)
+    action       — the action resolved at pre_move_to
+    post_move_to — final position after the action (second movement segment; non-dash actions)
+    dash_to      — final position after dash extra movement (dash action only)
     """
     actor = state.turn
-    pre_pos = state.player_pos if actor == "player" else state.ai_pos
     opp_pos = state.ai_pos if actor == "player" else state.player_pos
 
     player_hp, ai_hp = state.player_hp, state.ai_hp
     player_has_potion, ai_has_potion = state.player_has_potion, state.ai_has_potion
 
-    if action_first and action != "dash":
-        # Resolve action from current (pre-move) position
-        player_hp, ai_hp, player_has_potion, ai_has_potion = _resolve_action(
-            actor, action, pre_pos, opp_pos,
-            player_hp, ai_hp, player_has_potion, ai_has_potion
-        )
+    # Resolve action at pre_move_to
+    player_hp, ai_hp, player_has_potion, ai_has_potion = _resolve_action(
+        actor, action, pre_move_to, opp_pos,
+        player_hp, ai_hp, player_has_potion, ai_has_potion
+    )
 
-    # Apply base movement
+    # Determine final resting position
+    if action == "dash":
+        final_pos = dash_to if dash_to is not None else pre_move_to
+    else:
+        final_pos = post_move_to if post_move_to is not None else pre_move_to
+
     if actor == "player":
-        new_state = replace(state, player_pos=move_to,
+        new_state = replace(state, player_pos=final_pos,
                             player_hp=player_hp, ai_hp=ai_hp,
                             player_has_potion=player_has_potion, ai_has_potion=ai_has_potion)
     else:
-        new_state = replace(state, ai_pos=move_to,
+        new_state = replace(state, ai_pos=final_pos,
                             player_hp=player_hp, ai_hp=ai_hp,
                             player_has_potion=player_has_potion, ai_has_potion=ai_has_potion)
-
-    if not action_first or action == "dash":
-        # Resolve action from post-move position
-        post_pos = move_to
-        player_hp, ai_hp, player_has_potion, ai_has_potion = _resolve_action(
-            actor, action, post_pos, opp_pos,
-            new_state.player_hp, new_state.ai_hp,
-            new_state.player_has_potion, new_state.ai_has_potion
-        )
-        new_state = replace(new_state,
-                            player_hp=player_hp, ai_hp=ai_hp,
-                            player_has_potion=player_has_potion, ai_has_potion=ai_has_potion)
-
-    # Apply dash extra movement
-    if action == "dash" and dash_to is not None:
-        if actor == "player":
-            new_state = replace(new_state, player_pos=dash_to)
-        else:
-            new_state = replace(new_state, ai_pos=dash_to)
 
     return replace(new_state, turn="ai" if actor == "player" else "player")
 
@@ -223,8 +230,7 @@ def state_to_dict(state: GameState, extra_message: str = "") -> dict:
     opp_pos = state.ai_pos if actor == "player" else state.player_pos
 
     blocked = COLUMNS | {opp_pos}
-    valid_moves = list(get_reachable_cells(actor_pos, 2, blocked))
-    valid_actions = get_valid_actions(state, actor) if actor == "player" else []
+    valid_moves = list(get_reachable_cells(actor_pos, MOVE_RANGE, blocked))
 
     winner = is_game_over(state)
 
@@ -240,6 +246,7 @@ def state_to_dict(state: GameState, extra_message: str = "") -> dict:
         "winner": winner,
         "message": extra_message or ("Your turn!" if state.turn == "player" else "AI is thinking..."),
         "valid_moves": [list(m) for m in valid_moves],
-        "valid_actions": valid_actions,
         "columns": [list(c) for c in COLUMNS],
+        "max_hp": MAX_HP,
+        "move_range": MOVE_RANGE,
     }
