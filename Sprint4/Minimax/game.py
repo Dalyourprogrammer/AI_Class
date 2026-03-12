@@ -4,10 +4,9 @@ from collections import deque
 GRID_SIZE = 5
 MAX_HP = 3
 MOVE_RANGE = 2
-COLUMNS = frozenset({(1, 1), (1, 3), (3, 1), (3, 3)})
 DIRECTIONS = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
-ACTIONS = ["fire_bolt", "dagger", "heal", "dash"]
+ACTIONS = ["fire_bolt", "dagger", "dash"]
 
 
 @dataclass(frozen=True)
@@ -81,29 +80,13 @@ def get_reachable_with_dist(from_pos: tuple, max_steps: int, blocked: frozenset)
 
 
 def is_los_clear(pos_a: tuple, pos_b: tuple) -> bool:
-    """Returns True if pos_a and pos_b are in the same row, column, or diagonal
-    with no column blocking LOS."""
+    """Returns True if pos_a and pos_b share a row, column, or diagonal (no blocking)."""
     r1, c1 = pos_a
     r2, c2 = pos_b
-
     dr = r2 - r1
     dc = c2 - c1
-
-    # Must be same row, column, or diagonal
     if dr != 0 and dc != 0 and abs(dr) != abs(dc):
         return False
-
-    # Step one cell at a time from pos_a toward pos_b, checking for blocking columns
-    step_r = 0 if dr == 0 else (1 if dr > 0 else -1)
-    step_c = 0 if dc == 0 else (1 if dc > 0 else -1)
-
-    r, c = r1 + step_r, c1 + step_c
-    while (r, c) != (r2, c2):
-        if (r, c) in COLUMNS:
-            return False
-        r += step_r
-        c += step_c
-
     return True
 
 
@@ -117,28 +100,22 @@ def chebyshev(pos_a: tuple, pos_b: tuple) -> int:
 
 
 def get_valid_actions(state: GameState, actor: str) -> list:
-    """Return list of valid action names for actor in current state."""
+    """Return list of valid action names for actor in current state (heal handled separately as free action)."""
     if actor == "player":
         actor_pos = state.player_pos
         opp_pos = state.ai_pos
-        has_potion = state.player_has_potion
     else:
         actor_pos = state.ai_pos
         opp_pos = state.player_pos
-        has_potion = state.ai_has_potion
 
     actions = []
 
-    # Fire Bolt: always an option (may or may not deal damage)
+    # Fire Bolt: always an option
     actions.append("fire_bolt")
 
     # Dagger: adjacent orthogonally or diagonally
     if chebyshev(actor_pos, opp_pos) == 1:
         actions.append("dagger")
-
-    # Heal Potion: only if unused
-    if has_potion:
-        actions.append("heal")
 
     # Dash: always available
     actions.append("dash")
@@ -175,11 +152,11 @@ def _resolve_action(actor: str, action: str, actor_pos: tuple, opp_pos: tuple,
     return player_hp, ai_hp, player_has_potion, ai_has_potion
 
 
-def apply_turn(state: GameState, pre_move_to: tuple, action: str,
+def apply_turn(state: GameState, pre_heal: bool, pre_move_to: tuple, action: str,
                post_move_to: tuple = None, dash_to: tuple = None) -> GameState:
-    """Apply a full turn with split movement: move to pre_move_to, resolve action there,
-    then move to post_move_to (or dash_to for dash action). Returns new state with turn flipped.
+    """Apply a full turn with optional free pre-heal and split movement.
 
+    pre_heal     — if True, apply heal before movement/action (free action)
     pre_move_to  — position where the actor is when they act (first movement segment)
     action       — the action resolved at pre_move_to
     post_move_to — final position after the action (second movement segment; non-dash actions)
@@ -191,7 +168,14 @@ def apply_turn(state: GameState, pre_move_to: tuple, action: str,
     player_hp, ai_hp = state.player_hp, state.ai_hp
     player_has_potion, ai_has_potion = state.player_has_potion, state.ai_has_potion
 
-    # Resolve action at pre_move_to
+    # Free pre-heal: apply before movement/action
+    if pre_heal:
+        player_hp, ai_hp, player_has_potion, ai_has_potion = _resolve_action(
+            actor, "heal", pre_move_to, opp_pos,
+            player_hp, ai_hp, player_has_potion, ai_has_potion
+        )
+
+    # Resolve main action at pre_move_to
     player_hp, ai_hp, player_has_potion, ai_has_potion = _resolve_action(
         actor, action, pre_move_to, opp_pos,
         player_hp, ai_hp, player_has_potion, ai_has_potion
@@ -229,7 +213,7 @@ def state_to_dict(state: GameState, extra_message: str = "") -> dict:
     actor_pos = state.player_pos if actor == "player" else state.ai_pos
     opp_pos = state.ai_pos if actor == "player" else state.player_pos
 
-    blocked = COLUMNS | {opp_pos}
+    blocked = frozenset({opp_pos})
     valid_moves = list(get_reachable_cells(actor_pos, MOVE_RANGE, blocked))
 
     winner = is_game_over(state)
@@ -244,9 +228,8 @@ def state_to_dict(state: GameState, extra_message: str = "") -> dict:
         "turn": state.turn,
         "game_over": winner is not None,
         "winner": winner,
-        "message": extra_message or ("Your turn!" if state.turn == "player" else "AI is thinking..."),
+        "message": extra_message or ("Your turn!" if state.turn == "player" else "Opponent's turn..."),
         "valid_moves": [list(m) for m in valid_moves],
-        "columns": [list(c) for c in COLUMNS],
         "max_hp": MAX_HP,
         "move_range": MOVE_RANGE,
     }

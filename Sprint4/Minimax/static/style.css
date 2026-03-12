@@ -5,146 +5,519 @@
 }
 
 body {
-  background: #1a1a2e;
+  background: linear-gradient(180deg, #0d0d2b 0%, #1a2060 40%, #2b3a8a 70%, #1a4a1a 85%, #2a5a1a 100%);
   color: #e0e0e0;
-  font-family: 'Segoe UI', monospace, sans-serif;
+  font-family: 'Press Start 2P', monospace;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 24px 16px;
+  padding: 24px 16px 40px;
+  image-rendering: pixelated;
 }
 
-h1 {
-  font-size: 2rem;
-  color: #a0c4ff;
-  letter-spacing: 3px;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-}
-
-.subtitle {
-  color: #666;
-  font-size: 0.85rem;
-  margin-bottom: 24px;
-  letter-spacing: 1px;
-}
-
-/* HP Bars */
-.hud {
-  display: flex;
-  gap: 48px;
-  margin-bottom: 20px;
-  align-items: flex-start;
-}
-
-.hud-panel {
+/* ── Mode Select ──────────────────────────────────────────────────────────── */
+#mode-select-screen {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  min-width: 140px;
-}
-
-.hud-label {
-  font-size: 0.8rem;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-}
-
-.hud-label.player { color: #64b5f6; }
-.hud-label.ai     { color: #ef9a9a; }
-
-.hp-bar-bg {
-  width: 140px;
-  height: 14px;
-  background: #333;
-  border-radius: 7px;
-  overflow: hidden;
-  border: 1px solid #444;
-}
-
-.hp-bar-fill {
-  height: 100%;
-  border-radius: 7px;
-  transition: width 0.4s ease, background 0.4s ease;
-}
-
-.hp-text {
-  font-size: 0.85rem;
-  color: #aaa;
-}
-
-/* Grid */
-.grid-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(5, 80px);
-  grid-template-rows: repeat(5, 80px);
-  gap: 4px;
-  background: #0f0f1f;
-  padding: 8px;
-  border-radius: 8px;
-  border: 2px solid #2a2a4a;
-}
-
-.cell {
-  width: 80px;
-  height: 80px;
-  display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  font-size: 1.6rem;
-  font-weight: bold;
-  cursor: default;
-  border: 2px solid transparent;
-  transition: background 0.15s, border-color 0.15s, transform 0.1s;
-  user-select: none;
-  position: relative;
+  min-height: 80vh;
+  gap: 32px;
 }
 
-.cell.empty      { background: #1e1e3a; }
-.cell.column     { background: #3a3a3a; border-color: #555; cursor: not-allowed; }
-.cell.player     { background: #1a3a5c; border-color: #64b5f6; }
-.cell.ai         { background: #5c1a1a; border-color: #ef9a9a; }
-.cell.reachable  { background: #2a3a1a; border-color: #aed581; cursor: pointer; }
-.cell.reachable:hover { background: #3a5a1a; transform: scale(1.05); }
-.cell.selected   { background: #3a5a1a; border-color: #ffcc02; border-width: 3px; }
-.cell.dash-dest  { background: #2a1a3a; border-color: #ce93d8; cursor: pointer; }
-.cell.dash-dest:hover { background: #3a1a5a; transform: scale(1.05); }
-
-/* Cell icons */
-.cell .icon { font-size: 2rem; line-height: 1; }
-.cell .coord {
-  position: absolute;
-  bottom: 3px;
-  right: 5px;
-  font-size: 0.55rem;
-  color: #555;
-  font-weight: normal;
+.mode-buttons {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
-/* Action Panel */
-.action-panel {
+.mode-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.75rem;
+  background: #1a1a4a;
+  color: #a0c4ff;
+  border: 4px solid #4466cc;
+  padding: 20px 32px;
+  cursor: pointer;
+  box-shadow: 4px 4px 0 #000;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  min-height: 100px;
+  min-width: 160px;
+  transition: transform 0.05s;
+}
+
+.mode-btn:hover {
+  background: #2a2a6a;
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 #000;
+}
+
+.mode-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 #000;
+}
+
+.mode-desc {
+  font-size: 0.45rem;
+  color: #7090cc;
+  display: block;
+}
+
+/* ── Titles ───────────────────────────────────────────────────────────────── */
+.pixel-title {
+  font-size: 2rem;
+  color: #ffd700;
+  text-shadow: 4px 4px 0 #996600, 2px 2px 0 #cc8800;
+  letter-spacing: 4px;
+  text-align: center;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.pixel-sub {
+  font-size: 0.5rem;
+  color: #8899cc;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+
+/* ── Battlefield ─────────────────────────────────────────────────────────── */
+.battlefield-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  margin: 16px 0 8px;
+}
+
+/* ── HUD Sides ────────────────────────────────────────────────────────────── */
+.hud-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 130px;
+}
+
+.hud-label {
+  font-size: 0.5rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border: 2px solid #444;
+}
+
+.hud-left .hud-label { color: #88bbff; border-color: #2255aa; background: #0a0a2a; }
+.hud-right .hud-label { color: #ff8888; border-color: #aa2222; background: #2a0a0a; }
+
+/* ── Wizard Pixel Sprites (grid only, HUD sprites removed) ──────────────── */
+.wizard-sprite {
+  position: relative;
+  width: 8px;
+  height: 9px;
+  transform: scale(10);
+  transform-origin: top center;
+  margin: 48px auto 48px;
+  image-rendering: pixelated;
+  display: none;
+}
+
+/* Blue Wizard (facing right) — pixel art via box-shadow */
+.wizard-sprite.blue {
+  box-shadow:
+    /* Hat */
+    2px 0px 0 0 #2244cc,
+    3px 0px 0 0 #2244cc,
+    4px 0px 0 0 #2244cc,
+    1px 1px 0 0 #2244cc,
+    2px 1px 0 0 #3355ee,
+    3px 1px 0 0 #3355ee,
+    4px 1px 0 0 #3355ee,
+    5px 1px 0 0 #2244cc,
+    /* Face */
+    1px 2px 0 0 #ffddaa,
+    2px 2px 0 0 #ffddaa,
+    3px 2px 0 0 #ffddaa,
+    4px 2px 0 0 #ffddaa,
+    5px 2px 0 0 #ffddaa,
+    2px 3px 0 0 #ffddaa,
+    3px 3px 0 0 #111111,
+    4px 3px 0 0 #ffddaa,
+    5px 3px 0 0 #111111,
+    6px 3px 0 0 #ffddaa,
+    /* Robe body */
+    0px 4px 0 0 #1133bb,
+    1px 4px 0 0 #2244cc,
+    2px 4px 0 0 #3355ee,
+    3px 4px 0 0 #3355ee,
+    4px 4px 0 0 #3355ee,
+    5px 4px 0 0 #2244cc,
+    6px 4px 0 0 #1133bb,
+    0px 5px 0 0 #1133bb,
+    1px 5px 0 0 #2244cc,
+    2px 5px 0 0 #3355ee,
+    3px 5px 0 0 #ffddaa,
+    4px 5px 0 0 #3355ee,
+    5px 5px 0 0 #2244cc,
+    6px 5px 0 0 #1133bb,
+    0px 6px 0 0 #1133bb,
+    1px 6px 0 0 #2244cc,
+    2px 6px 0 0 #3355ee,
+    3px 6px 0 0 #3355ee,
+    4px 6px 0 0 #3355ee,
+    5px 6px 0 0 #2244cc,
+    6px 6px 0 0 #1133bb,
+    /* Staff */
+    7px 1px 0 0 #886633,
+    7px 2px 0 0 #886633,
+    7px 3px 0 0 #886633,
+    7px 4px 0 0 #886633,
+    8px 0px 0 0 #aaddff,
+    /* Legs */
+    2px 7px 0 0 #0a2266,
+    3px 7px 0 0 #0a2266,
+    4px 7px 0 0 #0a2266,
+    5px 7px 0 0 #0a2266,
+    2px 8px 0 0 #0a2266,
+    3px 8px 0 0 #775533,
+    4px 8px 0 0 #775533,
+    5px 8px 0 0 #0a2266;
+}
+
+/* Red Wizard (facing left) — mirror of blue with red palette */
+.wizard-sprite.red {
+  box-shadow:
+    /* Hat */
+    4px 0px 0 0 #cc2222,
+    5px 0px 0 0 #cc2222,
+    6px 0px 0 0 #cc2222,
+    3px 1px 0 0 #cc2222,
+    4px 1px 0 0 #ee3333,
+    5px 1px 0 0 #ee3333,
+    6px 1px 0 0 #ee3333,
+    7px 1px 0 0 #cc2222,
+    /* Face */
+    3px 2px 0 0 #ffddaa,
+    4px 2px 0 0 #ffddaa,
+    5px 2px 0 0 #ffddaa,
+    6px 2px 0 0 #ffddaa,
+    7px 2px 0 0 #ffddaa,
+    2px 3px 0 0 #ffddaa,
+    3px 3px 0 0 #111111,
+    4px 3px 0 0 #ffddaa,
+    5px 3px 0 0 #111111,
+    6px 3px 0 0 #ffddaa,
+    /* Robe body */
+    2px 4px 0 0 #aa1111,
+    3px 4px 0 0 #cc2222,
+    4px 4px 0 0 #ee3333,
+    5px 4px 0 0 #ee3333,
+    6px 4px 0 0 #ee3333,
+    7px 4px 0 0 #cc2222,
+    8px 4px 0 0 #aa1111,
+    2px 5px 0 0 #aa1111,
+    3px 5px 0 0 #cc2222,
+    4px 5px 0 0 #ee3333,
+    5px 5px 0 0 #ffddaa,
+    6px 5px 0 0 #ee3333,
+    7px 5px 0 0 #cc2222,
+    8px 5px 0 0 #aa1111,
+    2px 6px 0 0 #aa1111,
+    3px 6px 0 0 #cc2222,
+    4px 6px 0 0 #ee3333,
+    5px 6px 0 0 #ee3333,
+    6px 6px 0 0 #ee3333,
+    7px 6px 0 0 #cc2222,
+    8px 6px 0 0 #aa1111,
+    /* Staff */
+    1px 1px 0 0 #886633,
+    1px 2px 0 0 #886633,
+    1px 3px 0 0 #886633,
+    1px 4px 0 0 #886633,
+    0px 0px 0 0 #ffaaaa,
+    /* Legs */
+    3px 7px 0 0 #661111,
+    4px 7px 0 0 #661111,
+    5px 7px 0 0 #661111,
+    6px 7px 0 0 #661111,
+    3px 8px 0 0 #661111,
+    4px 8px 0 0 #775533,
+    5px 8px 0 0 #775533,
+    6px 8px 0 0 #661111;
+}
+
+/* ── Grid ─────────────────────────────────────────────────────────────────── */
+.grid-column {
+  position: relative;
+}
+
+.grid-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 72px);
+  grid-template-rows: repeat(5, 64px);
+  gap: 2px;
+  background: #050510;
+  padding: 4px;
+  border: 4px solid #334;
+  image-rendering: pixelated;
+}
+
+.cell {
+  width: 72px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  border: 2px solid #1a1a3a;
+  transition: background 0.1s, border-color 0.1s;
+  user-select: none;
+  position: relative;
+  background: #0d0d28;
+  image-rendering: pixelated;
+}
+
+/* Ground row — bottom row gets earthy look */
+.cell.ground { background: #1a3a0a; border-color: #2a5a10; }
+.cell.ground::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 6px;
+  background: #3a6a15;
+  border-top: 2px solid #5a9a22;
+}
+
+/* Cell states */
+.cell.player-cell    { background: #0a1e3a; border-color: #4488ff; border-width: 3px; }
+.cell.ai-cell        { background: #3a0a0a; border-color: #ff4444; border-width: 3px; }
+.cell.reachable      { background: #0a2a0a; border-color: #44aa44; cursor: pointer; }
+.cell.reachable:hover { background: #0f3a0f; border-color: #66cc66; }
+.cell.dash-dest      { background: #1a0a2a; border-color: #aa44ff; cursor: pointer; }
+.cell.dash-dest:hover { background: #280a3a; border-color: #cc66ff; }
+.cell.selected       { background: #2a2a00; border-color: #ffcc00; border-width: 3px; }
+
+/* In-cell wizard sprites (small, 8x scale) */
+.cell-wizard {
+  width: 1px;
+  height: 1px;
+  transform: scale(5);
+  image-rendering: pixelated;
+  position: relative;
+}
+
+.cell-wizard.blue {
+  box-shadow:
+    2px 0px 0 0 #2244cc,3px 0px 0 0 #2244cc,
+    1px 1px 0 0 #2244cc,2px 1px 0 0 #3355ee,3px 1px 0 0 #3355ee,4px 1px 0 0 #2244cc,
+    1px 2px 0 0 #ffddaa,2px 2px 0 0 #ffddaa,3px 2px 0 0 #ffddaa,4px 2px 0 0 #ffddaa,
+    2px 3px 0 0 #ffddaa,3px 3px 0 0 #111,4px 3px 0 0 #ffddaa,5px 3px 0 0 #111,
+    0px 4px 0 0 #1133bb,1px 4px 0 0 #2244cc,2px 4px 0 0 #3355ee,3px 4px 0 0 #3355ee,4px 4px 0 0 #2244cc,5px 4px 0 0 #1133bb,
+    0px 5px 0 0 #1133bb,1px 5px 0 0 #2244cc,2px 5px 0 0 #3355ee,3px 5px 0 0 #3355ee,4px 5px 0 0 #2244cc,5px 5px 0 0 #1133bb,
+    1px 6px 0 0 #0a2266,2px 6px 0 0 #0a2266,3px 6px 0 0 #0a2266,4px 6px 0 0 #0a2266,
+    1px 7px 0 0 #0a2266,2px 7px 0 0 #775533,3px 7px 0 0 #775533,4px 7px 0 0 #0a2266;
+}
+
+.cell-wizard.red {
+  box-shadow:
+    2px 0px 0 0 #cc2222,3px 0px 0 0 #cc2222,
+    1px 1px 0 0 #cc2222,2px 1px 0 0 #ee3333,3px 1px 0 0 #ee3333,4px 1px 0 0 #cc2222,
+    1px 2px 0 0 #ffddaa,2px 2px 0 0 #ffddaa,3px 2px 0 0 #ffddaa,4px 2px 0 0 #ffddaa,
+    2px 3px 0 0 #ffddaa,3px 3px 0 0 #111,4px 3px 0 0 #ffddaa,5px 3px 0 0 #111,
+    0px 4px 0 0 #aa1111,1px 4px 0 0 #cc2222,2px 4px 0 0 #ee3333,3px 4px 0 0 #ee3333,4px 4px 0 0 #cc2222,5px 4px 0 0 #aa1111,
+    0px 5px 0 0 #aa1111,1px 5px 0 0 #cc2222,2px 5px 0 0 #ee3333,3px 5px 0 0 #ee3333,4px 5px 0 0 #cc2222,5px 5px 0 0 #aa1111,
+    1px 6px 0 0 #661111,2px 6px 0 0 #661111,3px 6px 0 0 #661111,4px 6px 0 0 #661111,
+    1px 7px 0 0 #661111,2px 7px 0 0 #775533,3px 7px 0 0 #775533,4px 7px 0 0 #661111;
+}
+
+/* Coord labels */
+.coord {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 0.3rem;
+  color: #333;
+  font-family: 'Press Start 2P', monospace;
+}
+
+/* ── Animation Layer ──────────────────────────────────────────────────────── */
+#animation-layer {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 20;
+  overflow: visible;
+}
+
+/* Fireball pixel */
+.anim-fireball {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #ff6600;
+  box-shadow: 2px 0 0 #ffaa00, -2px 0 0 #ff4400, 0 -2px 0 #ffcc00;
+  image-rendering: pixelated;
+  z-index: 21;
+}
+
+/* Slash effect */
+.anim-slash {
+  position: absolute;
+  image-rendering: pixelated;
+  z-index: 21;
+}
+
+/* Heal aura */
+.anim-heal-aura {
+  position: absolute;
+  border: 4px solid #44ff88;
+  box-shadow: 0 0 8px #22cc66, inset 0 0 8px #22cc66;
+  image-rendering: pixelated;
+  z-index: 21;
+}
+
+@keyframes slash-appear {
+  0%   { opacity: 0; transform: scale(0.4) rotate(-20deg); }
+  25%  { opacity: 1; transform: scale(1.3) rotate(10deg); }
+  60%  { opacity: 1; transform: scale(1.0) rotate(0deg); }
+  100% { opacity: 0; transform: scale(0.8) rotate(0deg); }
+}
+
+@keyframes heal-pulse {
+  0%   { opacity: 0; transform: scale(0.7); }
+  35%  { opacity: 1; transform: scale(1.15); }
+  65%  { opacity: 0.7; transform: scale(1.0); }
+  100% { opacity: 0; transform: scale(0.85); }
+}
+
+/* ── HP Bars ──────────────────────────────────────────────────────────────── */
+.hp-bar-bg {
+  width: 120px;
+  height: 12px;
+  background: #111;
+  border: 3px solid #444;
+  overflow: hidden;
+  image-rendering: pixelated;
+}
+
+.hp-bar-bg.blue-bar { border-color: #2255aa; background: #050520; }
+.hp-bar-bg.red-bar  { border-color: #aa2222; background: #200505; }
+
+.hp-bar-fill {
+  height: 100%;
+  background: #44cc44;
+  transition: width 0.3s steps(8), background 0.3s steps(1);
+}
+
+.hp-text {
+  font-size: 0.45rem;
+  color: #aaa;
+}
+
+/* ── Potion Button ────────────────────────────────────────────────────────── */
+.potion-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.38rem;
+  padding: 6px 10px;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 #000;
+  letter-spacing: 1px;
+  border: 3px solid #444;
+  background: #111;
+  color: #aaa;
+}
+
+/* Blue (P1) potion */
+.potion-btn.potion-blue {
+  background: #050a2a;
+  color: #88aaff;
+  border-color: #2244aa;
+}
+
+.potion-btn.potion-blue:hover:not(:disabled) {
+  background: #0a1540;
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 #000;
+}
+
+.potion-btn.potion-blue.active {
+  background: #1a2a6a;
+  border-color: #88aaff;
+  color: #ffffff;
+  box-shadow: 0 0 6px #4466ff, 2px 2px 0 #000;
+}
+
+/* Red (P2) potion */
+.potion-btn.potion-red {
+  background: #2a0505;
+  color: #ff8888;
+  border-color: #aa2222;
+}
+
+.potion-btn.potion-red:hover:not(:disabled) {
+  background: #3a0808;
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 #000;
+}
+
+.potion-btn.potion-red.active {
+  background: #6a1a1a;
+  border-color: #ff8888;
+  color: #ffffff;
+  box-shadow: 0 0 6px #ff4444, 2px 2px 0 #000;
+}
+
+.potion-btn:active:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 #000;
+}
+
+.potion-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.potion-status {
+  font-size: 0.35rem;
+  color: #666;
+}
+
+.potion-status.blue-status { color: #4466cc; }
+.potion-status.red-status  { color: #cc4444; }
+
+/* ── Phase Indicator ──────────────────────────────────────────────────────── */
+.phase-indicator {
+  font-size: 0.45rem;
+  color: #88dd44;
+  letter-spacing: 1px;
+  min-height: 18px;
+  margin: 6px 0;
+  text-align: center;
+  max-width: 600px;
+}
+
+/* ── Action Panel ─────────────────────────────────────────────────────────── */
+.action-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-height: 80px;
 }
 
 .action-label {
-  font-size: 0.8rem;
+  font-size: 0.45rem;
   letter-spacing: 2px;
   color: #888;
-  text-transform: uppercase;
 }
 
 .action-buttons {
@@ -155,65 +528,134 @@ h1 {
 }
 
 .action-btn {
-  padding: 10px 18px;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  font-weight: bold;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.5rem;
+  padding: 10px 14px;
+  border: 3px solid #666;
   cursor: pointer;
-  transition: transform 0.1s, opacity 0.2s;
-  letter-spacing: 0.5px;
+  box-shadow: 3px 3px 0 #000;
+  text-align: center;
+  line-height: 1.6;
+  min-width: 100px;
+  transition: transform 0.05s, box-shadow 0.05s;
+}
+
+.action-btn:hover:not(:disabled) {
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 #000;
+}
+
+.action-btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 #000;
 }
 
 .action-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.25;
   cursor: not-allowed;
-  transform: none !important;
+  box-shadow: 1px 1px 0 #000;
 }
 
-.action-btn:hover:not(:disabled) { transform: translateY(-2px); }
+.btn-sub {
+  font-size: 0.35rem;
+  color: rgba(255,255,255,0.6);
+  font-weight: normal;
+}
 
-.btn-fire-bolt { background: #ff7043; color: #fff; }
-.btn-dagger    { background: #ab47bc; color: #fff; }
-.btn-heal      { background: #26a69a; color: #fff; }
-.btn-dash      { background: #42a5f5; color: #fff; }
+.btn-fire-bolt { background: #882200; color: #ffaa44; border-color: #ff6600; }
+.btn-dagger    { background: #440066; color: #dd88ff; border-color: #9933cc; }
+.btn-dash      { background: #003366; color: #88ccff; border-color: #2266aa; }
 
-/* Message Bar */
+/* ── Message Bar ──────────────────────────────────────────────────────────── */
 .message-bar {
-  background: #12122a;
-  border: 1px solid #2a2a4a;
-  border-radius: 6px;
-  padding: 10px 20px;
-  font-size: 0.9rem;
-  color: #c5cae9;
-  max-width: 440px;
+  background: #080818;
+  border: 3px solid #2a2a5a;
+  padding: 8px 16px;
+  font-size: 0.5rem;
+  color: #aabbdd;
+  max-width: 520px;
   text-align: center;
-  min-height: 40px;
-  line-height: 1.5;
+  min-height: 36px;
+  line-height: 1.8;
+  margin: 6px 0;
+  box-shadow: inset 0 0 8px rgba(0,0,80,0.5);
 }
 
-/* New Game */
+/* ── Move Log ─────────────────────────────────────────────────────────────── */
+.move-log {
+  width: 520px;
+  background: #080818;
+  border: 3px solid #2a2a5a;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.move-log-header {
+  background: #10103a;
+  padding: 5px 12px;
+  font-size: 0.4rem;
+  letter-spacing: 3px;
+  color: #555;
+  border-bottom: 2px solid #2a2a5a;
+}
+
+.move-log-entries {
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.log-empty {
+  display: block;
+  padding: 6px 12px;
+  font-size: 0.4rem;
+  color: #333;
+}
+
+.log-entry {
+  padding: 5px 12px;
+  border-bottom: 1px solid #111128;
+  font-size: 0.4rem;
+  line-height: 2;
+}
+
+.log-entry:last-child { border-bottom: none; }
+
+.log-turn { color: #444; font-size: 0.35rem; margin-bottom: 2px; }
+.log-player { color: #6699ff; }
+.log-ai     { color: #ff6666; }
+
+/* ── New Game Button ──────────────────────────────────────────────────────── */
 .new-game-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.5rem;
   margin-top: 10px;
-  padding: 10px 28px;
-  background: #303060;
+  padding: 10px 24px;
+  background: #1a1a3a;
   color: #a0c4ff;
-  border: 1px solid #4040a0;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  letter-spacing: 1px;
+  border: 3px solid #4444aa;
   cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
+  box-shadow: 3px 3px 0 #000;
+  letter-spacing: 1px;
 }
 
-.new-game-btn:hover { background: #404080; transform: translateY(-1px); }
+.new-game-btn:hover {
+  background: #2a2a5a;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 #000;
+}
 
-/* Game Over Overlay */
+.new-game-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 #000;
+}
+
+/* ── Game Over Overlay ────────────────────────────────────────────────────── */
 .overlay {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(0, 0, 0, 0.85);
   align-items: center;
   justify-content: center;
   z-index: 100;
@@ -222,105 +664,54 @@ h1 {
 .overlay.show { display: flex; }
 
 .overlay-box {
-  background: #1a1a3a;
-  border: 2px solid #4040a0;
-  border-radius: 12px;
+  background: #0a0a20;
+  border: 6px solid #4444aa;
   padding: 40px 60px;
   text-align: center;
-  animation: pop-in 0.3s ease;
+  box-shadow: 8px 8px 0 #000;
+  animation: pop-in 0.2s steps(4) forwards;
 }
 
 @keyframes pop-in {
-  from { transform: scale(0.8); opacity: 0; }
+  from { transform: scale(0.7); opacity: 0; }
   to   { transform: scale(1);   opacity: 1; }
 }
 
 .overlay-title {
-  font-size: 2rem;
-  margin-bottom: 10px;
+  font-size: 1.5rem;
+  margin-bottom: 16px;
+  letter-spacing: 4px;
+  text-shadow: 4px 4px 0 #000;
 }
 
-.overlay-title.win  { color: #a5d6a7; }
-.overlay-title.lose { color: #ef9a9a; }
+.overlay-title.win  { color: #ffd700; }
+.overlay-title.lose { color: #ff4444; }
 
 .overlay-sub {
-  color: #888;
-  margin-bottom: 24px;
-  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 28px;
+  font-size: 0.5rem;
+  line-height: 2;
 }
 
 .overlay-play-btn {
-  padding: 12px 36px;
-  background: #3050a0;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.6rem;
+  padding: 12px 28px;
+  background: #2244aa;
   color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
+  border: 3px solid #6688dd;
   cursor: pointer;
-  transition: background 0.2s;
+  box-shadow: 4px 4px 0 #000;
 }
 
-.overlay-play-btn:hover { background: #4060c0; }
-
-/* Phase indicator */
-.phase-indicator {
-  font-size: 0.78rem;
-  color: #aed581;
-  letter-spacing: 1px;
-  min-height: 20px;
+.overlay-play-btn:hover {
+  background: #3355cc;
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 #000;
 }
 
-.legend {
-  display: flex;
-  gap: 16px;
-  margin-top: 4px;
-  font-size: 0.75rem;
-  color: #666;
+.overlay-play-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 #000;
 }
-
-.legend span { display: flex; align-items: center; gap: 4px; }
-
-/* Move Log */
-.move-log {
-  width: 440px;
-  background: #12122a;
-  border: 1px solid #2a2a4a;
-  border-radius: 8px;
-  margin-top: 12px;
-  overflow: hidden;
-}
-
-.move-log-header {
-  background: #1e1e3a;
-  padding: 6px 14px;
-  font-size: 0.75rem;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: #666;
-  border-bottom: 1px solid #2a2a4a;
-}
-
-.move-log-entries {
-  max-height: 200px;
-  overflow-y: auto;
-  padding: 6px 0;
-}
-
-.log-entry {
-  padding: 6px 14px;
-  border-bottom: 1px solid #1a1a30;
-  font-size: 0.78rem;
-  line-height: 1.6;
-}
-
-.log-entry:last-child { border-bottom: none; }
-
-.log-turn {
-  color: #555;
-  font-size: 0.7rem;
-  letter-spacing: 1px;
-  margin-bottom: 2px;
-}
-
-.log-player { color: #90caf9; }
-.log-ai     { color: #ef9a9a; }

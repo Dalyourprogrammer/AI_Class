@@ -3,107 +3,110 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Minimax</title>
+  <title>Wizard Wars</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
 
-  <h1>Minimax</h1>
-  <p class="subtitle">Turn-based combat — Minimax AI opponent</p>
+  <!-- Mode Select Screen -->
+  <div id="mode-select-screen">
+    <h1 class="pixel-title">WIZARD<br>WARS</h1>
+    <p class="pixel-sub">Choose your battle mode</p>
+    <div class="mode-buttons">
+      <button class="mode-btn" id="btn-mode-pvc">
+        VS BOT
+        <span class="mode-desc">Face the minimax AI</span>
+      </button>
+      <button class="mode-btn" id="btn-mode-pvp">
+        2 PLAYER
+        <span class="mode-desc">Pass &amp; play locally</span>
+      </button>
+    </div>
+  </div>
 
-  <!-- HUD -->
-  <div class="hud">
-    <div class="hud-panel">
-      <span class="hud-label player">🧙 You</span>
-      <div class="hp-bar-bg">
-        <div class="hp-bar-fill" id="player-hp-fill" style="width:100%;background:#66bb6a;"></div>
+  <!-- Game Screen -->
+  <div id="game-screen" style="display:none;">
+    <h1 class="pixel-title">WIZARD WARS</h1>
+
+    <div class="battlefield-wrapper">
+
+      <!-- P1 HUD -->
+      <div class="hud-side hud-left">
+        <div class="hud-label" id="p1-label">PLAYER 1</div>
+        <div class="hp-bar-bg blue-bar">
+          <div class="hp-bar-fill" id="player-hp-fill" style="width:100%;"></div>
+        </div>
+        <div class="hp-text" id="player-hp-text">3 / 3</div>
+        <button class="potion-btn potion-blue" id="player-potion-btn" disabled>USE POTION</button>
+        <div class="potion-status blue-status" id="player-potion-status">READY</div>
       </div>
-      <span class="hp-text" id="player-hp-text">3 / 3</span>
-      <span id="player-potion" style="font-size:0.75rem;color:#80cbc4;">🧪 Potion</span>
-    </div>
 
-    <div class="hud-panel">
-      <span class="hud-label ai">🤖 AI</span>
-      <div class="hp-bar-bg">
-        <div class="hp-bar-fill" id="ai-hp-fill" style="width:100%;background:#66bb6a;"></div>
+      <!-- Grid Area -->
+      <div class="grid-column">
+        <div class="grid-wrapper">
+          <div class="grid" id="grid"></div>
+          <div id="animation-layer"></div>
+        </div>
       </div>
-      <span class="hp-text" id="ai-hp-text">3 / 3</span>
-      <span id="ai-potion" style="font-size:0.75rem;color:#80cbc4;">🧪 Potion</span>
+
+      <!-- P2 HUD -->
+      <div class="hud-side hud-right">
+        <div class="hud-label" id="p2-label">BOT</div>
+        <div class="hp-bar-bg red-bar">
+          <div class="hp-bar-fill" id="ai-hp-fill" style="width:100%;"></div>
+        </div>
+        <div class="hp-text" id="ai-hp-text">3 / 3</div>
+        <button class="potion-btn potion-red" id="ai-potion-btn" disabled style="display:none;">USE POTION</button>
+        <div class="potion-status red-status" id="ai-potion-status">READY</div>
+      </div>
+
+    </div><!-- /battlefield-wrapper -->
+
+    <!-- Phase indicator -->
+    <p class="phase-indicator" id="phase-indicator"></p>
+
+    <!-- Action Panel -->
+    <div class="action-panel" id="action-panel" style="visibility:hidden;">
+      <div class="action-label">CHOOSE ACTION</div>
+      <div class="action-buttons">
+        <button class="action-btn btn-fire-bolt" id="btn-fire-bolt" disabled>
+          FIRE BOLT<br><span class="btn-sub">1 dmg · ranged</span>
+        </button>
+        <button class="action-btn btn-dagger" id="btn-dagger" disabled>
+          DAGGER<br><span class="btn-sub">2 dmg · adjacent</span>
+        </button>
+        <button class="action-btn btn-dash" id="btn-dash" disabled>
+          DASH<br><span class="btn-sub">+2 extra steps</span>
+        </button>
+      </div>
     </div>
-  </div>
 
-  <!-- Grid -->
-  <div class="grid-wrapper">
-    <div class="grid" id="grid"></div>
+    <!-- Message Bar -->
+    <div class="message-bar" id="message-bar">Loading...</div>
 
-    <!-- Legend -->
-    <div class="legend">
-      <span>🧙 You</span>
-      <span>🤖 AI</span>
-      <span>🗿 Column</span>
-      <span style="color:#aed581;">■ Move here</span>
-      <span style="color:#ce93d8;">■ Dash here</span>
+    <!-- Move Log -->
+    <div class="move-log" id="move-log">
+      <div class="move-log-header">TURN LOG</div>
+      <div class="move-log-entries" id="move-log-entries">
+        <span class="log-empty">No moves yet.</span>
+      </div>
     </div>
-  </div>
 
-  <!-- Phase indicator -->
-  <p class="phase-indicator" id="phase-indicator"></p>
+    <!-- New Game -->
+    <button class="new-game-btn" id="new-game-btn">NEW GAME</button>
 
-  <!-- Action Panel -->
-  <div class="action-panel" id="action-panel" style="visibility:hidden;">
-    <span class="action-label">Choose Action</span>
-    <div class="action-buttons">
-      <button class="action-btn btn-fire-bolt" id="btn-fire-bolt" disabled>
-        ⚡ Fire Bolt<br><small style="font-weight:normal;font-size:0.7rem;">1 dmg, ranged</small>
-      </button>
-      <button class="action-btn btn-dagger" id="btn-dagger" disabled>
-        🗡️ Dagger<br><small style="font-weight:normal;font-size:0.7rem;">2 dmg, adjacent</small>
-      </button>
-      <button class="action-btn btn-heal" id="btn-heal" disabled>
-        🧪 Heal<br><small style="font-weight:normal;font-size:0.7rem;">+2 HP, one use</small>
-      </button>
-      <button class="action-btn btn-dash" id="btn-dash" disabled>
-        💨 Dash<br><small style="font-weight:normal;font-size:0.7rem;">+2 more steps</small>
-      </button>
+    <!-- Game Over Overlay -->
+    <div class="overlay" id="overlay">
+      <div class="overlay-box">
+        <div class="overlay-title" id="overlay-title">VICTORY!</div>
+        <div class="overlay-sub" id="overlay-sub">You won!</div>
+        <button class="overlay-play-btn" id="overlay-play-btn">PLAY AGAIN</button>
+      </div>
     </div>
-  </div>
 
-  <!-- Message -->
-  <div class="message-bar" id="message-bar">Loading...</div>
-
-  <!-- Move Log -->
-  <div class="move-log" id="move-log">
-    <div class="move-log-header">Turn Log</div>
-    <div class="move-log-entries" id="move-log-entries">
-      <span style="color:#555;font-size:0.8rem;">No moves yet.</span>
-    </div>
-  </div>
-
-  <!-- New Game -->
-  <button class="new-game-btn" id="new-game-btn">↺ New Game</button>
-
-  <!-- Rules summary -->
-  <details style="margin-top:20px;max-width:440px;color:#666;font-size:0.78rem;line-height:1.6;">
-    <summary style="cursor:pointer;color:#888;letter-spacing:1px;">Rules</summary>
-    <ul style="margin-top:8px;padding-left:20px;">
-      <li>Each turn has <strong>3 steps</strong>: move (0–2 squares), act, then move remaining squares.</li>
-      <li><strong>Split movement</strong> — e.g. move 1 step, attack, then move 1 more step.</li>
-      <li><strong>Fire Bolt</strong> — 1 damage if you share a row/column with no column blocking.</li>
-      <li><strong>Dagger</strong> — 2 damage if you're adjacent (dist 1) at attack time.</li>
-      <li><strong>Heal Potion</strong> — restores 2 HP. One use per battle.</li>
-      <li><strong>Dash</strong> — move up to 2 more squares after acting (click purple cell).</li>
-      <li>Both sides start with 3 HP. First to 0 HP loses. You go first.</li>
-    </ul>
-  </details>
-
-  <!-- Game Over Overlay -->
-  <div class="overlay" id="overlay">
-    <div class="overlay-box">
-      <div class="overlay-title win" id="overlay-title">Victory!</div>
-      <div class="overlay-sub" id="overlay-sub">You won!</div>
-      <button class="overlay-play-btn" id="overlay-play-btn">Play Again</button>
-    </div>
-  </div>
+  </div><!-- /game-screen -->
 
   <script src="/static/game.js"></script>
 </body>
