@@ -200,8 +200,6 @@ function renderGrid() {
       const cell = document.createElement("div");
       cell.className = "cell";
 
-      // Ground row styling
-      if (r === 4) cell.classList.add("ground");
 
       const isPlayer = key === playerKey;
       const isAI = key === aiKey;

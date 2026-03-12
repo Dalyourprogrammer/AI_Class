@@ -285,16 +285,7 @@ body {
   image-rendering: pixelated;
 }
 
-/* Ground row — bottom row gets earthy look */
-.cell.ground { background: #1a3a0a; border-color: #2a5a10; }
-.cell.ground::after {
-  content: '';
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 6px;
-  background: #3a6a15;
-  border-top: 2px solid #5a9a22;
-}
+/* Ground row — no special styling */
 
 /* Cell states */
 .cell.player-cell    { background: #0a1e3a; border-color: #4488ff; border-width: 3px; }
@@ -307,11 +298,16 @@ body {
 
 /* In-cell wizard sprites (small, 8x scale) */
 .cell-wizard {
+  position: absolute;
   width: 1px;
   height: 1px;
+  /* sprite shadow bounding box is ~8px wide × 9px tall at 1x (scale 5 = 40×45px)
+     offset by half visual size so it's centered in the cell */
+  left: calc(50% - 20px);
+  top:  calc(50% - 22px);
   transform: scale(5);
+  transform-origin: 0 0;
   image-rendering: pixelated;
-  position: relative;
 }
 
 .cell-wizard.blue {
