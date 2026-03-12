@@ -1,0 +1,189 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #1a1a2e;
+  color: #e0e0e0;
+  font-family: 'Segoe UI', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+}
+
+h1 {
+  color: #a0c4ff;
+  font-size: 2rem;
+  margin-bottom: 6px;
+  letter-spacing: 1px;
+}
+
+#status {
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+  min-height: 1.5em;
+  color: #ccc;
+}
+
+#status .x-color { color: #64b5f6; font-weight: bold; }
+#status .o-color { color: #ef9a9a; font-weight: bold; }
+#status .thinking { color: #ffd54f; }
+#status .winner-x { color: #64b5f6; font-size: 1.3rem; font-weight: bold; }
+#status .winner-o { color: #ef9a9a; font-size: 1.3rem; font-weight: bold; }
+#status .draw { color: #aaa; font-size: 1.3rem; font-weight: bold; }
+
+/* Macro board: 3x3 grid of mini-boards */
+#macro-board {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  grid-template-rows: repeat(3, auto);
+  gap: 8px;
+  background: #0f0f1f;
+  padding: 12px;
+  border-radius: 10px;
+  border: 2px solid #333;
+}
+
+/* Each mini-board */
+.macro-cell {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 50px);
+  grid-template-rows: repeat(3, 50px);
+  gap: 3px;
+  padding: 6px;
+  background: #16213e;
+  border-radius: 6px;
+  border: 3px solid #333;
+  transition: border-color 0.2s;
+}
+
+.macro-cell.active {
+  border-color: #ffd54f;
+  box-shadow: 0 0 12px rgba(255, 213, 79, 0.4);
+}
+
+.macro-cell.won-x {
+  border-color: #64b5f6;
+  background: #0d2137;
+}
+
+.macro-cell.won-o {
+  border-color: #ef9a9a;
+  background: #2a0d0d;
+}
+
+.macro-cell.drawn {
+  border-color: #555;
+  background: #1a1a1a;
+}
+
+/* Overlay for won/drawn macro cells */
+.macro-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.5rem;
+  font-weight: bold;
+  border-radius: 4px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.macro-overlay.x { color: #64b5f6; text-shadow: 0 0 20px rgba(100,181,246,0.7); }
+.macro-overlay.o { color: #ef9a9a; text-shadow: 0 0 20px rgba(239,154,154,0.7); }
+.macro-overlay.draw-icon { color: #666; font-size: 2rem; }
+
+/* Micro cells */
+.micro-cell {
+  width: 50px;
+  height: 50px;
+  background: #1e1e3a;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: bold;
+  cursor: default;
+  user-select: none;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.micro-cell.x {
+  color: #64b5f6;
+  background: #1a2a3a;
+}
+
+.micro-cell.o {
+  color: #ef9a9a;
+  background: #2a1a1a;
+}
+
+.micro-cell.clickable {
+  cursor: pointer;
+  background: #1e3a1e;
+  border-color: #66bb6a;
+}
+
+.micro-cell.clickable:hover {
+  background: #2a4a2a;
+  transform: scale(1.08);
+  border-color: #aed581;
+}
+
+.micro-cell.blocked {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Controls */
+#controls {
+  margin-top: 20px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+button {
+  padding: 10px 22px;
+  background: #1565c0;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button:hover { background: #1976d2; }
+button:active { background: #0d47a1; }
+
+/* Rules */
+details {
+  margin-top: 20px;
+  max-width: 640px;
+  width: 100%;
+  background: #16213e;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 0.9rem;
+  color: #bbb;
+  line-height: 1.6;
+}
+
+summary {
+  cursor: pointer;
+  color: #a0c4ff;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+details p { margin-top: 8px; }

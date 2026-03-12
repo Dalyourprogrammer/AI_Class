@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ultimate Tic-Tac-Toe</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <h1>Ultimate Tic-Tac-Toe</h1>
+  <div id="status">Loading...</div>
+
+  <div id="macro-board"></div>
+
+  <div id="controls">
+    <button id="new-game-btn">New Game</button>
+  </div>
+
+  <details>
+    <summary>How to Play</summary>
+    <p>
+      The board is a 3&times;3 grid of smaller 3&times;3 Tic-Tac-Toe boards.
+      <strong>You are X</strong> and go first. On your first move you may click any cell.
+    </p>
+    <p>
+      The position you choose <em>within</em> a small board determines which small board
+      your opponent must play on next. For example, clicking the top-left cell of any board
+      sends the opponent to the top-left board.
+    </p>
+    <p>
+      Win a small board to claim that position on the large board. Win three in a row on the
+      large board to win the game! If you are sent to a completed board, you may choose any
+      active board freely.
+    </p>
+    <p>
+      The AI (O) uses <strong>Monte Carlo Tree Search</strong> with UCB1 to find its moves.
+    </p>
+  </details>
+
+  <script src="/static/game.js"></script>
+</body>
+</html>
