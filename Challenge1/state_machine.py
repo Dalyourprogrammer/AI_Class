@@ -94,6 +94,11 @@ def transition(state: ConvState, classification: str) -> ConvState:
         # hold stage, become warm/welcoming
         new_tone = "warm"
 
+    elif classification == "applied_question":
+        # student is engaged and curious — advance stage, warm tone
+        new_stage = _advance_stage(state)
+        new_tone = "warm"
+
     elif classification == "minimal_evasive":
         new_evasive = state.consecutive_evasive + 1
         new_tone = "disappointed" if new_evasive >= 2 else "probing"
@@ -106,6 +111,9 @@ def transition(state: ConvState, classification: str) -> ConvState:
 
     elif classification == "flirted":
         new_tone = "probing"     # redirects with patience
+
+    elif classification == "greeting_casual":
+        pass  # no stage or tone change — treat as a social beat
 
     # Mark topic complete if we've reached resolution
     completed = list(state.completed_topics)

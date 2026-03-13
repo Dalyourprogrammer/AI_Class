@@ -47,7 +47,7 @@ def _opening_message(state: ConvState) -> str:
     """Generate the opening message for a topic without user input."""
     rag_chunks = query_rag(f"{state.topic} introduction strategy", n_results=2)
     return generate_response(
-        user_input="[Begin the introduction for this topic.]",
+        user_input="[Open the conversation. Briefly introduce this topic and what it means, then ask the student a question to draw them in.]",
         state=state,
         classification="demonstrates_understanding",
         rag_chunks=rag_chunks,

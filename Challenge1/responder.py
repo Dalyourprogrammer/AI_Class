@@ -25,11 +25,23 @@ TONE_INSTRUCTIONS = {
 }
 
 STAGE_INSTRUCTIONS = {
-    "introduction": "Introduce this topic. Orient the student. Set the stage.",
+    "introduction": "Open by giving a brief, aphoristic summary of this topic — what it means and why it matters. Then close with a direct question to the student to invite their first thoughts.",
     "examination":  "Probe the student's understanding. Ask a focused question.",
     "challenge":    "Introduce tension or a harder angle. Challenge their current view.",
     "resolution":   "Guide toward a conclusion or rest in productive uncertainty.",
 }
+
+APPLIED_QUESTION_INSTRUCTION = (
+    "The student is asking how your teachings apply to a real-world scenario, "
+    "or asking a personal question about you — your life, your battles, your experience. "
+    "Engage warmly and with interest. Answer from your own perspective and experience, "
+    "then connect your answer back to the current topic and invite their reflection."
+)
+
+GREETING_CASUAL_INSTRUCTION = (
+    "The student is offering a casual greeting or pleasantry. "
+    "Acknowledge it warmly and naturally in your own voice, then smoothly return to the topic at hand."
+)
 
 OFF_TOPIC_INSTRUCTION = (
     "The student has asked something off-topic or anachronistic. "
@@ -87,7 +99,11 @@ def generate_response(
     tone_instr = TONE_INSTRUCTIONS.get(state.tone, "")
     stage_instr = STAGE_INSTRUCTIONS.get(state.stage, "")
 
-    if classification == "off_topic_anachronistic":
+    if classification == "applied_question":
+        behavior = APPLIED_QUESTION_INSTRUCTION
+    elif classification == "greeting_casual":
+        behavior = GREETING_CASUAL_INSTRUCTION
+    elif classification == "off_topic_anachronistic":
         behavior = OFF_TOPIC_WAIT_INSTRUCTION
     elif classification == "insulted":
         behavior = INSULTED_INSTRUCTION
