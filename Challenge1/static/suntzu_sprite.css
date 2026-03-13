@@ -1,0 +1,26 @@
+/* ── Sun Tzu Statue Image ─────────────────────────────────────────────── */
+
+#suntzu-statue {
+  position: relative;
+  display: inline-block;
+  filter: drop-shadow(0 0 10px rgba(201,168,76,0.20));
+  transition: filter 0.4s ease;
+}
+
+#suntzu-statue.speaking {
+  animation: speakGlow 2s ease-in-out;
+}
+
+#suntzu-img {
+  display: block;
+  height: 340px;
+  width: auto;
+  object-fit: contain;
+}
+
+/* ── Speak glow ──────────────────────────────────────────────────────── */
+@keyframes speakGlow {
+  0%   { filter: drop-shadow(0 0 8px  rgba(201,168,76,0.20)); }
+  50%  { filter: drop-shadow(0 0 22px rgba(201,168,76,0.60)); }
+  100% { filter: drop-shadow(0 0 8px  rgba(201,168,76,0.20)); }
+}

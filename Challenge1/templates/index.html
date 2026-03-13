@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sun Tzu — The Art of War</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/suntzu_sprite.css" />
+</head>
+<body>
+
+<!-- ── Status bar ─────────────────────────────────────────────────────── -->
+<div id="status-bar">
+  <span id="state-badge">Introduction · Warm</span>
+</div>
+
+<!-- ── Topic breadcrumb ────────────────────────────────────────────────── -->
+<div id="topic-map">
+  <span class="topic-node active" data-topic="shi">Shi</span>
+  <span class="topic-sep">→</span>
+  <span class="topic-node" data-topic="zhi">Zhi</span>
+  <span class="topic-sep">→</span>
+  <span class="topic-node" data-topic="bian">Bian</span>
+  <span class="topic-sep">→</span>
+  <span class="topic-node" data-topic="quanmou">Quanmou</span>
+</div>
+
+<!-- ── Main scene ─────────────────────────────────────────────────────── -->
+<div id="scene">
+  <div id="sprite-container">
+    <!-- Sun Tzu statue image -->
+    <div id="suntzu-statue">
+      <img id="suntzu-img"
+           src="/static/suntzu_cropped.jpg"
+           alt="Sun Tzu statue" />
+    </div>
+    <div id="sprite-name">Sun Tzu</div>
+  </div>
+</div>
+
+<!-- ── Dialogue box ────────────────────────────────────────────────────── -->
+<div id="dialogue-area">
+  <div id="dialogue-speaker">Sun Tzu:</div>
+  <div id="dialogue-text"></div>
+</div>
+
+<!-- ── Input area ─────────────────────────────────────────────────────── -->
+<div id="input-area">
+  <input
+    id="user-input"
+    type="text"
+    placeholder="Your response..."
+    autocomplete="off"
+    maxlength="400"
+  />
+  <button id="send-btn">Send</button>
+</div>
+
+<!-- ── End-of-conversation panel ──────────────────────────────────────── -->
+<div id="end-panel" class="hidden">
+  <p id="end-message">You have journeyed through all four teachings.</p>
+  <div id="end-buttons">
+    <button class="revisit-btn" data-topic="shi">Revisit Shi</button>
+    <button class="revisit-btn" data-topic="zhi">Revisit Zhi</button>
+    <button class="revisit-btn" data-topic="bian">Revisit Bian</button>
+    <button class="revisit-btn" data-topic="quanmou">Revisit Quanmou</button>
+    <button id="farewell-btn">Bid Farewell</button>
+  </div>
+</div>
+
+<!-- ── Farewell screen ────────────────────────────────────────────────── -->
+<div id="farewell-screen" class="hidden">
+  <div id="farewell-quote"></div>
+  <button id="restart-btn">Begin Again</button>
+</div>
+
+<script>
+  const TOPIC_NAMES = {
+    shi: "Strategic Advantage (Shi)",
+    zhi: "Foreknowledge (Zhi)",
+    bian: "Adaptability (Bian)",
+    quanmou: "Holistic Planning (Quanmou)",
+  };
+</script>
+<script src="/static/game.js"></script>
+
+<!-- Pre-load opening message from server -->
+<script>
+  window.OPENING_MESSAGE = {{ opening | tojson }};
+  window.INITIAL_STATE   = {{ state | tojson }};
+</script>
+
+</body>
+</html>
