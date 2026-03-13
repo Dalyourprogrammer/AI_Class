@@ -39,15 +39,24 @@ OFF_TOPIC_INSTRUCTION = (
 )
 
 INSULTED_INSTRUCTION = (
-    "The student has been rude or insulting. Respond with calm, composed dignity. "
-    "Ask them, without anger, to conduct themselves with respect. "
-    "Do not scold — simply observe that discourtesy serves no one, and invite them to continue properly."
+    "The student has been rude or insulting. Respond with complete calm — no anger, no farewell. "
+    "In your own measured words, let them know you are patient and will simply wait here "
+    "until they are ready to engage with sincerity and respect. "
+    "Make clear the conversation remains open whenever they choose to return to it."
 )
 
 FLIRTED_INSTRUCTION = (
     "The student is flirting or making an inappropriate advance. "
-    "Deflect with dry, patient composure — neither offended nor amused. "
-    "Redirect the conversation firmly back to the philosophical teaching at hand."
+    "Respond with unhurried composure — neither flattered nor offended. "
+    "In your own words, let them know you are content to wait until they wish to speak "
+    "of things that matter. Do not end the conversation — simply pause it with dignity."
+)
+
+OFF_TOPIC_WAIT_INSTRUCTION = (
+    "The student has said something strange or completely off-topic. "
+    "Acknowledge it gently with dry patience. In your own words, let them know "
+    "you are in no hurry — you will wait here until they are ready to explore something meaningful together. "
+    "Do not dismiss them; keep the door open."
 )
 
 
@@ -79,7 +88,7 @@ def generate_response(
     stage_instr = STAGE_INSTRUCTIONS.get(state.stage, "")
 
     if classification == "off_topic_anachronistic":
-        behavior = OFF_TOPIC_INSTRUCTION
+        behavior = OFF_TOPIC_WAIT_INSTRUCTION
     elif classification == "insulted":
         behavior = INSULTED_INSTRUCTION
     elif classification == "flirted":
