@@ -7,7 +7,8 @@ let currentState = window.INITIAL_STATE || {};
 const dialogueText   = document.getElementById("dialogue-text");
 const userInput      = document.getElementById("user-input");
 const sendBtn        = document.getElementById("send-btn");
-const stateBadge     = document.getElementById("state-badge");
+const topicStageBadge = document.getElementById("topic-stage-badge");
+const toneBadge       = document.getElementById("tone-badge");
 const statueEl       = document.getElementById("suntzu-statue");
 const scene          = document.getElementById("scene");
 const endPanel       = document.getElementById("end-panel");
@@ -76,7 +77,8 @@ function highlightTopic(topicId) {
 // ── Update UI from state ──────────────────────────────────────────────────
 function updateUI(state) {
   currentState = state;
-  stateBadge.textContent = `${cap(state.stage)} · ${cap(state.tone)}`;
+  topicStageBadge.textContent = `${TOPIC_NAMES[state.topic] || state.topic} · ${cap(state.stage)}`;
+  toneBadge.textContent = cap(state.tone);
   // don't highlight any topic node here — let highlightTopic handle it
   highlightTopic(null);
 }

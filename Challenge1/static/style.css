@@ -27,7 +27,7 @@ html, body {
 /* ── Status bar ──────────────────────────────────────────────────────────── */
 #status-bar {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   padding: 6px 14px;
   background: var(--panel-bg);
