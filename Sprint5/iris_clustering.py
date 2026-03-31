@@ -6,6 +6,7 @@ from sklearn.datasets import load_iris
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
+from scipy.cluster.hierarchy import linkage, dendrogram
 
 # ── Load data ──────────────────────────────────────────────────────────────────
 iris = load_iris()
@@ -147,6 +148,30 @@ plt.tight_layout()
 plt.savefig("iris_silhouette.png", dpi=150)
 plt.close()
 print("Saved iris_silhouette.png")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Plot 5 — Dendrogram with Ward's linkage
+# ══════════════════════════════════════════════════════════════════════════════
+Z = linkage(X, method="ward")
+
+# Color threshold: cut at 70% of the max merge distance to highlight 3 clusters
+color_threshold = 0.7 * max(Z[:, 2])
+
+fig, ax = plt.subplots(figsize=(12, 5))
+dendrogram(Z, ax=ax,
+           color_threshold=color_threshold,
+           above_threshold_color="lightgrey",
+           leaf_rotation=90, leaf_font_size=5)
+ax.axhline(color_threshold, color="red", linestyle="--", linewidth=1.2,
+           label=f"Cut threshold ({color_threshold:.1f})")
+ax.set_xlabel("Sample Index")
+ax.set_ylabel("Ward Linkage Distance")
+ax.set_title("Iris — Hierarchical Clustering Dendrogram (Ward's Linkage)")
+ax.legend(fontsize=8)
+plt.tight_layout()
+plt.savefig("iris_dendrogram.png", dpi=150)
+plt.close()
+print("Saved iris_dendrogram.png")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Highlighted answers to stdout
