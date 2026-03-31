@@ -9,6 +9,7 @@ Sprint5/
   iris_petal_scatter.png   ← Plot 3: petal length vs petal width, colored by k-means clusters
   iris_silhouette.png      ← Plot 4: silhouette scores for k=2..10
   iris_dendrogram.png      ← Plot 5: Ward's linkage dendrogram
+  iris_gmm.png             ← Plot 6: GMM components with covariance ellipses in PCA space
 ```
 
 ## Plot Details
@@ -41,6 +42,16 @@ Sprint5/
 - Bar chart with the best-scoring k highlighted
 - Answers printed to stdout and annotated on the plot:
 
+### Plot 6 — Gaussian Mixture Model (n_components=3)
+- `GaussianMixture(n_components=3, covariance_type='full', random_state=42)` fit on original 4-feature data
+- Predict component labels; plot in PCA 2D space (reuse existing projection), color by component
+- Draw a **1-sigma and 2-sigma confidence ellipse** for each Gaussian component:
+  - Project the 4D covariance matrix into PCA space: `Σ_2d = V @ Σ_4d @ V.T` where V are the PCA eigenvectors
+  - Compute eigenvalues/eigenvectors of `Σ_2d` → width/height/angle of ellipse
+  - Use `matplotlib.patches.Ellipse` for the overlay (filled, low alpha)
+- Print GMM log-likelihood and BIC to stdout
+- Save → `iris_gmm.png`
+
 ---
 
 ## Answers (highlighted)
@@ -63,5 +74,5 @@ Sprint5/
 ```bash
 cd /workspaces/AI_Class/Sprint5
 python3 iris_clustering.py
-ls *.png   # should see 5 PNG files
+ls *.png   # should see 6 PNG files
 ```

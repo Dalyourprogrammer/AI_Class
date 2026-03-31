@@ -7,6 +7,8 @@ from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from scipy.cluster.hierarchy import linkage, dendrogram
+from sklearn.mixture import GaussianMixture
+from matplotlib.patches import Ellipse
 
 # ── Load data ──────────────────────────────────────────────────────────────────
 iris = load_iris()
@@ -172,6 +174,55 @@ plt.tight_layout()
 plt.savefig("iris_dendrogram.png", dpi=150)
 plt.close()
 print("Saved iris_dendrogram.png")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Plot 6 — Gaussian Mixture Model with covariance ellipses
+# ══════════════════════════════════════════════════════════════════════════════
+gmm = GaussianMixture(n_components=3, covariance_type="full", random_state=42)
+gmm.fit(X)
+gmm_labels = gmm.predict(X)
+
+# PCA eigenvectors (rows of components_) used to project covariances into 2D
+V = pca.components_   # shape (2, 4)
+
+GMM_COLORS = ["#1b9e77", "#d95f02", "#7570b3"]  # teal, orange, purple
+
+def draw_ellipse(ax, mean_2d, cov_2d, color, n_std):
+    """Draw a covariance ellipse at n_std standard deviations."""
+    eigvals, eigvecs = np.linalg.eigh(cov_2d)
+    eigvals = np.maximum(eigvals, 0)   # guard against tiny negatives
+    angle = np.degrees(np.arctan2(eigvecs[1, 0], eigvecs[0, 0]))
+    width, height = 2 * n_std * np.sqrt(eigvals)
+    ellipse = Ellipse(xy=mean_2d, width=width, height=height, angle=angle,
+                      facecolor=color, alpha=0.15, edgecolor=color,
+                      linewidth=1.5, linestyle="--")
+    ax.add_patch(ellipse)
+
+fig, ax = plt.subplots(figsize=(7, 5))
+for ci in range(3):
+    mask = gmm_labels == ci
+    ax.scatter(X_pca[mask, 0], X_pca[mask, 1],
+               c=GMM_COLORS[ci], marker="o", label=f"Component {ci+1}",
+               edgecolors="k", linewidths=0.4, s=60, alpha=0.85)
+
+    # Project 4D mean and covariance into PCA space
+    mean_2d = V @ gmm.means_[ci]
+    cov_2d  = V @ gmm.covariances_[ci] @ V.T
+    draw_ellipse(ax, mean_2d, cov_2d, GMM_COLORS[ci], n_std=1)
+    draw_ellipse(ax, mean_2d, cov_2d, GMM_COLORS[ci], n_std=2)
+
+ax.set_xlabel(f"PC 1 ({var[0]*100:.1f}% variance)")
+ax.set_ylabel(f"PC 2 ({var[1]*100:.1f}% variance)")
+ax.set_title("Iris — Gaussian Mixture Model (n=3, full covariance)")
+ax.legend(title="GMM Component")
+plt.tight_layout()
+plt.savefig("iris_gmm.png", dpi=150)
+plt.close()
+print("Saved iris_gmm.png")
+
+gmm_bic = gmm.bic(X)
+gmm_ll  = gmm.score(X) * len(X)   # total log-likelihood
+print(f"  GMM log-likelihood: {gmm_ll:.2f}  |  BIC: {gmm_bic:.2f}")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Highlighted answers to stdout
