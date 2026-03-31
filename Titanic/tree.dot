@@ -1,0 +1,17 @@
+digraph Tree {
+node [shape=box, style="filled, rounded", color="black", fontname="helvetica"] ;
+edge [fontname="helvetica"] ;
+0 [label=<Sex_numeric &le; 0.5<br/>gini = 0.474<br/>samples = 100.0%<br/>value = [0.614, 0.386]<br/>class = Did not survive>, fillcolor="#f5d0b5"] ;
+1 [label=<Pclass &le; 2.5<br/>gini = 0.383<br/>samples = 35.4%<br/>value = [0.258, 0.742]<br/>class = Survived>, fillcolor="#7ebfee"] ;
+0 -> 1 [labeldistance=2.5, labelangle=45, headlabel="True"] ;
+2 [label=<gini = 0.1<br/>samples = 19.2%<br/>value = [0.053, 0.947]<br/>class = Survived>, fillcolor="#44a2e6"] ;
+1 -> 2 ;
+3 [label=<gini = 0.5<br/>samples = 16.2%<br/>value = [0.5, 0.5]<br/>class = Did not survive>, fillcolor="#ffffff"] ;
+1 -> 3 ;
+4 [label=<Age &le; 13.0<br/>gini = 0.308<br/>samples = 64.6%<br/>value = [0.81, 0.19]<br/>class = Did not survive>, fillcolor="#eb9f68"] ;
+0 -> 4 [labeldistance=2.5, labelangle=-45, headlabel="False"] ;
+5 [label=<gini = 0.493<br/>samples = 4.6%<br/>value = [0.439, 0.561]<br/>class = Survived>, fillcolor="#d4eaf9"] ;
+4 -> 5 ;
+6 [label=<gini = 0.271<br/>samples = 60.0%<br/>value = [0.838, 0.162]<br/>class = Did not survive>, fillcolor="#ea995f"] ;
+4 -> 6 ;
+}
