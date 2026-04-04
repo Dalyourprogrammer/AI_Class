@@ -5,9 +5,10 @@
 # ============================================================
 
 # ----- 0. Install / load packages -----
+.libPaths(c("~/R/library", .libPaths()))
 pkgs <- c("ggplot2", "dplyr", "scales", "mclust", "caret", "reshape2")
 for (p in pkgs) {
-  if (!requireNamespace(p, quietly = TRUE)) install.packages(p, repos = "https://cloud.r-project.org")
+  if (!requireNamespace(p, quietly = TRUE)) install.packages(p, lib = "~/R/library", repos = "https://cloud.r-project.org")
   library(p, character.only = TRUE)
 }
 
@@ -53,26 +54,26 @@ ml_rates <- df %>%
   arrange(desc(churn_rate))
 cat("\nChurn rate by MultipleLines:\n"); print(as.data.frame(ml_rates))
 
-# Plot 2 — Contract
-p2 <- ggplot(df, aes(x = Contract, fill = Churn)) +
+# Plot 2 — Dependents
+p2 <- ggplot(df, aes(x = Dependents, fill = Churn)) +
   geom_bar(position = "fill") +
   scale_y_continuous(labels = percent_format()) +
   scale_fill_manual(values = c("No" = "#4CAF50", "Yes" = "#F44336")) +
   labs(
-    title = "Churn Rate by Contract Type",
-    x = "Contract Type", y = "Fraction of Customers", fill = "Churned"
+    title = "Churn Rate by Dependents",
+    x = "Has Dependents", y = "Fraction of Customers", fill = "Churned"
   ) +
   theme_minimal(base_size = 13) +
   theme(plot.title = element_text(face = "bold"))
-ggsave("churn_contract_plot.png", p2, width = 7, height = 5, dpi = 150)
-cat("Saved: churn_contract_plot.png\n")
+ggsave("churn_dependents_plot.png", p2, width = 7, height = 5, dpi = 150)
+cat("Saved: churn_dependents_plot.png\n")
 
-# Churn rates by Contract
-ct_rates <- df %>%
-  group_by(Contract) %>%
+# Churn rates by Dependents
+dep_rates <- df %>%
+  group_by(Dependents) %>%
   summarise(churn_rate = mean(Churn == "Yes"), n = n()) %>%
   arrange(desc(churn_rate))
-cat("\nChurn rate by Contract:\n"); print(as.data.frame(ct_rates))
+cat("\nChurn rate by Dependents:\n"); print(as.data.frame(dep_rates))
 
 # ----- 3. Preprocessing for GMM -----
 
@@ -106,36 +107,42 @@ X <- as.matrix(df)
 # Scale
 X_scaled <- scale(X)
 
-# Train / test split (80/20, stratified)
+# ----- 4. GMM — 5-Fold Cross-Validation -----
 set.seed(42)
-train_idx <- caret::createDataPartition(y, p = 0.8, list = FALSE)
-X_train <- X_scaled[train_idx, ]
-X_test  <- X_scaled[-train_idx, ]
-y_train <- y[train_idx]
-y_test  <- y[-train_idx]
+folds <- caret::createFolds(y, k = 5, list = TRUE)
 
-cat("\nTrain size:", nrow(X_train), "  Test size:", nrow(X_test), "\n")
+fold_preds  <- vector("character", length(y))
+fold_actual <- vector("character", length(y))
 
-# ----- 4. GMM Model -----
-cat("\nFitting GMM (G=2)...\n")
-gmm <- Mclust(X_train, G = 2, verbose = FALSE)
-cat("GMM model type:", gmm$modelName, "\n")
+cat("\nRunning 5-fold cross-validation...\n")
+for (i in seq_along(folds)) {
+  test_idx  <- folds[[i]]
+  train_idx <- unlist(folds[-i])
 
-# Map component numbers to Churn labels via majority vote
-train_components <- gmm$classification
-comp_labels <- sapply(1:2, function(c) {
-  idx <- train_components == c
-  ifelse(sum(y_train[idx] == "Yes") >= sum(y_train[idx] == "No"), "Yes", "No")
-})
-cat("Component mapping:", paste0("Component ", 1:2, " -> ", comp_labels, collapse = ", "), "\n")
+  X_tr <- X_scaled[train_idx, ]; y_tr <- y[train_idx]
+  X_te <- X_scaled[test_idx,  ]; y_te <- y[test_idx]
 
-# Predict on test set
-test_pred_comp <- predict(gmm, X_test)$classification
-test_pred <- factor(comp_labels[test_pred_comp], levels = c("No", "Yes"))
+  gmm_cv <- Mclust(X_tr, G = 2, verbose = FALSE)
+
+  comp_map <- sapply(1:2, function(c) {
+    idx <- gmm_cv$classification == c
+    ifelse(sum(y_tr[idx] == "Yes") >= sum(y_tr[idx] == "No"), "Yes", "No")
+  })
+
+  pred_comp <- predict(gmm_cv, X_te)$classification
+  fold_preds[test_idx]  <- comp_map[pred_comp]
+  fold_actual[test_idx] <- as.character(y_te)
+
+  cat("  Fold", i, "— model:", gmm_cv$modelName,
+      "| mapping:", paste0("C", 1:2, "->", comp_map, collapse = ", "), "\n")
+}
+
+all_preds  <- factor(fold_preds,  levels = c("No", "Yes"))
+all_actual <- factor(fold_actual, levels = c("No", "Yes"))
 
 # ----- 5. Evaluation -----
-cat("\n=== Confusion Matrix & Metrics ===\n")
-cm <- confusionMatrix(test_pred, y_test, positive = "Yes")
+cat("\n=== 5-Fold CV — Aggregate Confusion Matrix & Metrics ===\n")
+cm <- confusionMatrix(all_preds, all_actual, positive = "Yes")
 print(cm)
 
 cat("\nPrecision (Yes):", round(cm$byClass["Precision"], 4), "\n")
@@ -156,12 +163,5 @@ p_cm <- ggplot(cm_df, aes(x = Actual, y = Predicted, fill = Count)) +
         legend.position = "right")
 ggsave("churn_confusion_matrix.png", p_cm, width = 6, height = 5, dpi = 150)
 cat("Saved: churn_confusion_matrix.png\n")
-
-# ----- 6. Validation Set Note -----
-cat("\n=== Validation Set Discussion ===\n")
-cat("A separate validation set is NOT required for this GMM configuration.\n")
-cat("G=2 is fixed by domain knowledge (binary target), so no hyperparameter\n")
-cat("is being tuned on data. If G were selected via BIC on training data,\n")
-cat("a validation set would be needed to avoid overfitting the G selection.\n")
 
 cat("\nDone. All plots saved to Sprint5/Churn/\n")

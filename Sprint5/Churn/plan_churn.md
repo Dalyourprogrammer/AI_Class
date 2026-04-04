@@ -15,7 +15,7 @@ holdout test set, and write a short summary with business recommendations.
 Sprint5/Churn/
   churn_analysis.R              ← single R script
   churn_multilines_plot.png     ← Plot 1: churn fraction by MultipleLines category
-  churn_contract_plot.png       ← Plot 2: churn fraction by Contract type
+  churn_dependents_plot.png     ← Plot 2: churn fraction by Dependents (Yes/No)
   churn_confusion_matrix.png    ← Plot 3: confusion matrix heatmap
   churn_writeup.md              ← writeup: EDA findings, model results, recommendations
 ```
@@ -31,28 +31,33 @@ Sprint5/Churn/
 Focus only on MultipleLines and Contract.
 - Group by feature, compute `churn_rate = sum(Churn=="Yes") / n()`
 - **Plot 1** (`churn_multilines_plot.png`): stacked bar chart — MultipleLines categories on x-axis (No, Yes, No phone service), stacked fill = Churn Yes/No, y-axis as fraction/percent
-- **Plot 2** (`churn_contract_plot.png`): same style for Contract (Month-to-month, One year, Two year)
+- **Plot 2** (`churn_dependents_plot.png`): same style for Dependents (Yes / No)
 - Use `ggplot2`: `geom_bar(position="fill")` + `scale_y_continuous(labels=scales::percent)`
 
 ### 3 — Preprocessing for GMM
 - Drop `customerID`
 - Binary encode all Yes/No columns → 0/1
 - One-hot encode multi-class categoricals: `InternetService`, `Contract`, `PaymentMethod`, `MultipleLines`
-- `set.seed(42)` then 80/20 split with `sample()` or `caret::createDataPartition`
 - Scale numeric features with `scale()`
+- No train/test split — full dataset used in cross-validation
 
-### 4 — GMM Model
+### 4 — GMM Model with 5-Fold Cross-Validation
 - Package: `mclust`
-- Fit: `Mclust(X_train, G=2)` — 2 components for binary churn target
-- Map GMM components to churn classes (Yes/No) by majority vote on training labels
-- Predict on test set: `predict(gmm_model, X_test)$classification`, then remap to Yes/No
+- `set.seed(42)`, create 5 stratified folds with `caret::createFolds(y, k=5)`
+- For each fold: fit `Mclust(X_train_fold, G=2)`, map components to Yes/No by majority vote, predict on held-out fold
+- Collect out-of-fold (OOF) predictions across all 5 folds
 
 ### 5 — Evaluation
-- Confusion matrix, precision, recall via `caret::confusionMatrix(predicted, actual)`
-- Save confusion matrix as a PNG heatmap using `ggplot2`
-- **Do we need a validation set?** No separate validation set is required here. GMM has no hyperparameters being tuned on data — `G=2` is fixed by domain knowledge (binary target). If G were selected by BIC score on training data, a validation set would be warranted to avoid overfitting that selection. With a fixed G, the 80/20 train/test split is sufficient.
+- Aggregate OOF predictions across all folds → single confusion matrix over full dataset
+- `caret::confusionMatrix(all_preds, all_actual, positive="Yes")`
+- Print accuracy, recall, precision, F1
+- Save confusion matrix as PNG heatmap using `ggplot2`
 
-### 6 — Writeup (`churn_writeup.md`)
+### 6 — Update Writeup (`churn_writeup.md`)
+- Update model section to describe 5-fold CV instead of 80/20 split
+- Update results with CV metrics
+
+### 7 — Writeup (`churn_writeup.md`)
 1. **EDA Summary** — churn rates per MultipleLines and Contract category; key patterns
 2. **Model** — GMM approach, preprocessing, component-to-class mapping
 3. **Results** — confusion matrix values, precision, recall; interpretation
