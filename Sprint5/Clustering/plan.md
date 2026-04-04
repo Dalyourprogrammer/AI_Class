@@ -37,19 +37,27 @@ Sprint5/
 - Save → `iris_dendrogram.png`
 - Note: scipy's `dendrogram` is the standard tool; scikit-learn's `AgglomerativeClustering` provides the same Ward linkage for cluster labels if needed, but scipy produces the actual dendrogram plot
 
-### Plot 4 — Silhouette Score Bar Chart (k=2..10)
-- For each k, fit KMeans and compute `silhouette_score(X, labels)`
-- Bar chart with the best-scoring k highlighted
-- Answers printed to stdout and annotated on the plot:
+### Plot 4 — Silhouette Grid (3×3, k=2..10)
+- 3×3 subplot grid, one silhouette plot per k from 2 to 10
+- Each subplot: fit `KMeans(n_clusters=k)`, compute `silhouette_samples` + `silhouette_score`
+- One horizontal band per cluster, samples sorted descending within band; colors from `cm.tab10`
+- Vertical dashed red line at the mean silhouette score per subplot
+- Subplot title: `k={k}  (avg={score:.3f})`; best-k title highlighted in bold red
+- X-axis: silhouette coefficient [-0.2, 1.0]; Y-axis ticks hidden
+- Overall figure title: "Silhouette Plots for k=2 to k=10 (Iris Dataset)"
+- Save → `iris_silhouette.png`
 
-### Plot 6 — Gaussian Mixture Model (n_components=3)
-- `GaussianMixture(n_components=3, covariance_type='full', random_state=42)` fit on original 4-feature data
-- Predict component labels; plot in PCA 2D space (reuse existing projection), color by component
-- Draw a **1-sigma and 2-sigma confidence ellipse** for each Gaussian component:
-  - Project the 4D covariance matrix into PCA space: `Σ_2d = V @ Σ_4d @ V.T` where V are the PCA eigenvectors
-  - Compute eigenvalues/eigenvectors of `Σ_2d` → width/height/angle of ellipse
-  - Use `matplotlib.patches.Ellipse` for the overlay (filled, low alpha)
-- Print GMM log-likelihood and BIC to stdout
+### Plot 6 — GMM Soft-Assignment in 2D PCA Space (n_components=3)
+- `GaussianMixture(n_components=3, covariance_type='full', random_state=42)` fit directly on `X_pca` (2D)
+  — model lives in the same space as the plot; no projection approximation
+- Density backdrop: `contourf` + `contour` per component using `gmm.means_[ci]` and `gmm.covariances_[ci]` directly (exact 2D normals)
+- Soft assignments: `proba = gmm.predict_proba(X_pca)` → shape (150, 3)
+- Each point's color = probability-weighted blend of the 3 component RGB colors: `point_colors = proba @ rgb_components`
+  - Pure-cluster points → solid component color; boundary points → blended/intermediate color
+- Edge thickness encodes confidence: `linewidths = 0.3 + 1.5 * (1 - proba.max(axis=1))`
+  - Confident points: thin edge; uncertain points: thick black edge
+- Component means marked with white stars
+- Legend placed beside (outside) the axes to the right; includes colored patches per component + a star entry labeled "Component mean"
 - Save → `iris_gmm.png`
 
 ---

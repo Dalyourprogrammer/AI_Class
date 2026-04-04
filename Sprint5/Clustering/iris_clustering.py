@@ -5,10 +5,10 @@ import numpy as np
 from sklearn.datasets import load_iris
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
+from sklearn.metrics import silhouette_score, silhouette_samples
 from scipy.cluster.hierarchy import linkage, dendrogram
 from sklearn.mixture import GaussianMixture
-from matplotlib.patches import Ellipse
+from scipy.stats import multivariate_normal
 
 # ── Load data ──────────────────────────────────────────────────────────────────
 iris = load_iris()
@@ -102,54 +102,48 @@ plt.close()
 print("Saved iris_petal_scatter.png")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Plot 4 — Silhouette scores for k=2..10
+# Plot 4 — Silhouette grid (3×3, k=2..10)
 # ══════════════════════════════════════════════════════════════════════════════
+import matplotlib.cm as cm
+
 ks = range(2, 11)
-scores = []
+avg_scores = {}
 for k in ks:
     km = KMeans(n_clusters=k, random_state=42, n_init=10)
-    lbls = km.fit_predict(X)
-    scores.append(silhouette_score(X, lbls))
+    avg_scores[k] = silhouette_score(X, km.fit_predict(X))
+best_k = max(avg_scores, key=avg_scores.get)
 
-best_k = list(ks)[int(np.argmax(scores))]
-best_score = max(scores)
+fig, axes = plt.subplots(3, 3, figsize=(14, 12))
+fig.suptitle("Silhouette Plots for k=2 to k=10 (Iris Dataset)", fontsize=13, fontweight="bold")
 
-fig, ax = plt.subplots(figsize=(8, 5))
-bar_colors = ["#e41a1c" if k == best_k else "#aec7e8" for k in ks]
-bars = ax.bar(list(ks), scores, color=bar_colors, edgecolor="k", linewidth=0.6)
-ax.set_xlabel("Number of Clusters (k)")
-ax.set_ylabel("Silhouette Score")
-ax.set_title("Silhouette Score vs k for Iris Data (k=2 to 10)")
-ax.set_xticks(list(ks))
-
-# Annotate best bar
-ax.annotate(f"Best k={best_k}\n({best_score:.3f})",
-            xy=(best_k, best_score),
-            xytext=(best_k + 0.6, best_score - 0.03),
-            fontsize=9, color="#e41a1c", fontweight="bold",
-            arrowprops=dict(arrowstyle="->", color="#e41a1c"))
-
-# Highlighted answer box
-answer_text = (
-    "Best k = 2  (highest silhouette score)\n\n"
-    "Challenge insight: k=2 beats k=3 even though there\n"
-    "are 3 true species. Setosa is so well-separated that\n"
-    "it dominates the score, while Versicolor & Virginica\n"
-    "overlap and merge into one cluster. This shows that\n"
-    "silhouette optimizes geometric separation, not domain\n"
-    "labels — the 'best' k is metric-dependent and may not\n"
-    "recover overlapping true classes."
-)
-ax.text(0.98, 0.97, answer_text,
-        transform=ax.transAxes, fontsize=7.5,
-        verticalalignment="top", horizontalalignment="right",
-        bbox=dict(boxstyle="round,pad=0.5", facecolor="#fffde7",
-                  edgecolor="#e41a1c", linewidth=1.2))
+for idx, k in enumerate(ks):
+    ax = axes[idx // 3][idx % 3]
+    km = KMeans(n_clusters=k, random_state=42, n_init=10)
+    labels = km.fit_predict(X)
+    sample_sil = silhouette_samples(X, labels)
+    avg = avg_scores[k]
+    colors = cm.tab10(np.linspace(0, 1, k))
+    y_lower = 10
+    for ci in range(k):
+        vals = np.sort(sample_sil[labels == ci])
+        y_upper = y_lower + len(vals)
+        ax.fill_betweenx(np.arange(y_lower, y_upper), 0, vals,
+                         facecolor=colors[ci], edgecolor=colors[ci], alpha=0.8)
+        y_lower = y_upper + 5
+    ax.axvline(avg, color="red", linestyle="--", linewidth=1.2)
+    is_best = (k == best_k)
+    ax.set_title(f"k={k}  (avg={avg:.3f})", fontsize=9,
+                 fontweight="bold" if is_best else "normal",
+                 color="red" if is_best else "black")
+    ax.set_xlim([-0.2, 1.0])
+    ax.set_yticks([])
+    ax.set_xlabel("Silhouette coeff.", fontsize=7)
 
 plt.tight_layout()
 plt.savefig("iris_silhouette.png", dpi=150)
 plt.close()
 print("Saved iris_silhouette.png")
+avg_score = avg_scores[3]   # k=3 score used in stdout answers
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Plot 5 — Dendrogram with Ward's linkage
@@ -179,49 +173,66 @@ print("Saved iris_dendrogram.png")
 # Plot 6 — Gaussian Mixture Model with covariance ellipses
 # ══════════════════════════════════════════════════════════════════════════════
 gmm = GaussianMixture(n_components=3, covariance_type="full", random_state=42)
-gmm.fit(X)
-gmm_labels = gmm.predict(X)
-
-# PCA eigenvectors (rows of components_) used to project covariances into 2D
-V = pca.components_   # shape (2, 4)
+gmm.fit(X_pca)                        # fit directly in 2D — exact 2D normal distributions
+gmm_labels = gmm.predict(X_pca)
 
 GMM_COLORS = ["#1b9e77", "#d95f02", "#7570b3"]  # teal, orange, purple
 
-def draw_ellipse(ax, mean_2d, cov_2d, color, n_std):
-    """Draw a covariance ellipse at n_std standard deviations."""
-    eigvals, eigvecs = np.linalg.eigh(cov_2d)
-    eigvals = np.maximum(eigvals, 0)   # guard against tiny negatives
-    angle = np.degrees(np.arctan2(eigvecs[1, 0], eigvecs[0, 0]))
-    width, height = 2 * n_std * np.sqrt(eigvals)
-    ellipse = Ellipse(xy=mean_2d, width=width, height=height, angle=angle,
-                      facecolor=color, alpha=0.15, edgecolor=color,
-                      linewidth=1.5, linestyle="--")
-    ax.add_patch(ellipse)
+def hex_to_rgb01(h):
+    h = h.lstrip("#")
+    return np.array([int(h[i:i+2], 16) / 255 for i in (0, 2, 4)])
 
-fig, ax = plt.subplots(figsize=(7, 5))
+# Soft assignment probabilities — each row sums to 1
+proba = gmm.predict_proba(X_pca)                      # (150, 3)
+rgb_components = np.array([hex_to_rgb01(c) for c in GMM_COLORS])  # (3, 3)
+point_colors = proba @ rgb_components                 # (150, 3) blended RGB
+edge_widths   = 0.3 + 1.5 * (1 - proba.max(axis=1)) # thick edge = uncertain
+
+# Build meshgrid over PCA extent
+x_min, x_max = X_pca[:, 0].min() - 0.5, X_pca[:, 0].max() + 0.5
+y_min, y_max = X_pca[:, 1].min() - 0.5, X_pca[:, 1].max() + 0.5
+xx, yy = np.meshgrid(np.linspace(x_min, x_max, 200),
+                     np.linspace(y_min, y_max, 200))
+grid = np.c_[xx.ravel(), yy.ravel()]
+
+fig, ax = plt.subplots(figsize=(9, 5))
+
+# Density backdrop — exact 2D Gaussian PDFs (no projection needed)
 for ci in range(3):
-    mask = gmm_labels == ci
-    ax.scatter(X_pca[mask, 0], X_pca[mask, 1],
-               c=GMM_COLORS[ci], marker="o", label=f"Component {ci+1}",
-               edgecolors="k", linewidths=0.4, s=60, alpha=0.85)
+    Z = multivariate_normal(mean=gmm.means_[ci], cov=gmm.covariances_[ci]).pdf(grid).reshape(xx.shape)
+    ax.contourf(xx, yy, Z, levels=6, colors=[GMM_COLORS[ci]], alpha=0.20)
+    ax.contour(xx, yy, Z, levels=6, colors=[GMM_COLORS[ci]], linewidths=0.8, alpha=0.6)
 
-    # Project 4D mean and covariance into PCA space
-    mean_2d = V @ gmm.means_[ci]
-    cov_2d  = V @ gmm.covariances_[ci] @ V.T
-    draw_ellipse(ax, mean_2d, cov_2d, GMM_COLORS[ci], n_std=1)
-    draw_ellipse(ax, mean_2d, cov_2d, GMM_COLORS[ci], n_std=2)
+# Soft-assignment scatter — color blended by probability
+ax.scatter(X_pca[:, 0], X_pca[:, 1],
+           c=point_colors, edgecolors="k",
+           linewidths=edge_widths, s=70, alpha=0.9, zorder=3)
+
+# Component means + legend patches
+from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
+legend_handles = []
+for ci in range(3):
+    ax.scatter(*gmm.means_[ci], marker="*", s=220, color="white",
+               edgecolors=GMM_COLORS[ci], linewidths=1.5, zorder=5)
+    legend_handles.append(Patch(facecolor=GMM_COLORS[ci], edgecolor="k",
+                                label=f"Component {ci+1}"))
+legend_handles.append(Line2D([0], [0], marker="*", color="w",
+                             markerfacecolor="white", markeredgecolor="black",
+                             markersize=11, label="Component mean"))
 
 ax.set_xlabel(f"PC 1 ({var[0]*100:.1f}% variance)")
 ax.set_ylabel(f"PC 2 ({var[1]*100:.1f}% variance)")
-ax.set_title("Iris — Gaussian Mixture Model (n=3, full covariance)")
-ax.legend(title="GMM Component")
+ax.set_title("Iris — GMM Soft Assignments (n=3)\nColor blend = membership probability · Edge width = uncertainty")
+ax.legend(handles=legend_handles, title="GMM Component", fontsize=8,
+          bbox_to_anchor=(1.02, 1), loc="upper left", borderaxespad=0)
 plt.tight_layout()
 plt.savefig("iris_gmm.png", dpi=150)
 plt.close()
 print("Saved iris_gmm.png")
 
-gmm_bic = gmm.bic(X)
-gmm_ll  = gmm.score(X) * len(X)   # total log-likelihood
+gmm_bic = gmm.bic(X_pca)
+gmm_ll  = gmm.score(X_pca) * len(X_pca)   # total log-likelihood
 print(f"  GMM log-likelihood: {gmm_ll:.2f}  |  BIC: {gmm_bic:.2f}")
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -231,8 +242,7 @@ print()
 print("=" * 65)
 print("  ANSWERS")
 print("=" * 65)
-print(f"  Best k according to silhouette plot: k = {best_k}  "
-      f"(score = {best_score:.4f})")
+print(f"  Silhouette score for k=3: {avg_score:.4f}")
 print()
 print("  What this suggests about clustering challenges:")
 print("  ─" * 32)
