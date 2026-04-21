@@ -17,3 +17,27 @@ def predict(hidden_weights, output_weights, point):
     output = sigmoid(output_input)                  # scalar
 
     return output
+def train(hidden_weights, output_weights, point, target_label, learning_rate):
+    hidden_weights = np.array(hidden_weights, dtype=float)
+    output_weights = np.array(output_weights, dtype=float)
+    point = np.array(point, dtype=float)
+
+    # --- Forward pass ---
+    hidden_inputs = hidden_weights @ point
+    hidden_outputs = sigmoid(hidden_inputs)
+
+    output_input = output_weights @ hidden_outputs
+    output = sigmoid(output_input)
+
+    # --- Backpropagation ---
+    # Output layer error signal
+    output_error = (target_label - output) * output * (1 - output)
+
+    # Hidden layer error signals
+    hidden_errors = (output_weights * output_error) * hidden_outputs * (1 - hidden_outputs)
+
+    # --- Weight updates ---
+    output_weights += learning_rate * output_error * hidden_outputs
+    hidden_weights += learning_rate * np.outer(hidden_errors, point)
+
+    return hidden_weights, output_weights
