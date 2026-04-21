@@ -2,3 +2,18 @@ import math
 
 def sigmoid(x):
     return 1 / (1+ math.exp(-x))
+
+def predict(hidden_weights, output_weights, point):
+    hidden_weights = np.array(hidden_weights)
+    output_weights = np.array(output_weights)
+    point = np.array(point)
+
+    # Compute hidden layer activations
+    hidden_inputs = hidden_weights @ point          # shape: (num_hidden_nodes,)
+    hidden_outputs = sigmoid(hidden_inputs)         # shape: (num_hidden_nodes,)
+
+    # Compute output layer activation
+    output_input = output_weights @ hidden_outputs  # scalar
+    output = sigmoid(output_input)                  # scalar
+
+    return output
