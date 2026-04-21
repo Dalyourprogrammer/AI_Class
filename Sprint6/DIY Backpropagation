@@ -17,6 +17,7 @@ def predict(hidden_weights, output_weights, point):
     output = sigmoid(output_input)                  # scalar
 
     return output
+
 def train(hidden_weights, output_weights, point, target_label, learning_rate):
     hidden_weights = np.array(hidden_weights, dtype=float)
     output_weights = np.array(output_weights, dtype=float)
@@ -39,5 +40,16 @@ def train(hidden_weights, output_weights, point, target_label, learning_rate):
     # --- Weight updates ---
     output_weights += learning_rate * output_error * hidden_outputs
     hidden_weights += learning_rate * np.outer(hidden_errors, point)
+
+    return hidden_weights, output_weights
+
+def epoch(hidden_weights, output_weights, training_set, training_labels, learning_rate):
+    hidden_weights = np.array(hidden_weights, dtype=float)
+    output_weights = np.array(output_weights, dtype=float)
+
+    for point, label in zip(training_set, training_labels):
+        hidden_weights, output_weights = train(
+            hidden_weights, output_weights, point, label, learning_rate
+        )
 
     return hidden_weights, output_weights
