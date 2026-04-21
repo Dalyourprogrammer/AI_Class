@@ -1,7 +1,12 @@
-import math
+#!/usr/bin/env python3
+import numpy as np
+
+# XOR dataset
+XOR_INPUTS  = [[0, 0], [0, 1], [1, 0], [1, 1]]
+XOR_LABELS  = [0, 1, 1, 0]
 
 def sigmoid(x):
-    return 1 / (1+ math.exp(-x))
+    return 1 / (1 + np.exp(-x))
 
 def predict(hidden_weights, output_weights, point):
     hidden_weights = np.array(hidden_weights)
@@ -64,3 +69,30 @@ def evaluate(hidden_weights, output_weights, testing_set, testing_labels):
             correct += 1
 
     return correct / len(testing_labels)
+
+
+if __name__ == "__main__":
+    np.random.seed(42)
+
+    num_inputs  = 2
+    num_hidden  = 4
+    learning_rate = 0.5
+    num_epochs  = 10000
+
+    hidden_weights = np.random.uniform(-1, 1, (num_hidden, num_inputs))
+    output_weights = np.random.uniform(-1, 1, (num_hidden,))
+
+    for i in range(num_epochs):
+        hidden_weights, output_weights = epoch(
+            hidden_weights, output_weights,
+            XOR_INPUTS, XOR_LABELS, learning_rate
+        )
+
+    accuracy = evaluate(hidden_weights, output_weights, XOR_INPUTS, XOR_LABELS)
+    print(f"Accuracy after {num_epochs} epochs: {accuracy * 100:.1f}%")
+
+    print("\nPredictions:")
+    for point, label in zip(XOR_INPUTS, XOR_LABELS):
+        out = predict(hidden_weights, output_weights, point)
+        pred = 1 if out >= 0.5 else 0
+        print(f"  {point} -> predicted {pred}  (expected {label}, raw={out:.4f})")
