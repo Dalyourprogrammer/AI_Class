@@ -1,0 +1,25 @@
+{'input_file': 'names.txt', 'work_dir': 'names', 'resume': True, 'sample_only': False, 'num_workers': 4, 'max_steps': 100000, 'device': 'cpu', 'seed': 3407, 'top_k': -1, 'type': 'transformer', 'n_layer': 4, 'n_head': 4, 'n_embd': 64, 'n_embd2': 64, 'batch_size': 32, 'learning_rate': 0.0005, 'weight_decay': 0.01}
+number of examples in the dataset: 32033
+max word length: 15
+number of unique characters in the vocabulary: 26
+vocabulary:
+abcdefghijklmnopqrstuvwxyz
+split up the dataset into 31033 training examples and 1000 test examples
+dataset determined that: vocab_size=27, block_size=16
+number of parameters: 0.20M
+model #params: 204544
+resuming from existing model in the workdir
+Traceback (most recent call last):
+  File "/workspaces/AI_Class/Sprint7/makemore/makemore.py", line 656, in <module>
+    model.load_state_dict(torch.load(os.path.join(args.work_dir, 'model.pt')))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/torch/serialization.py", line 1500, in load
+    with _open_file_like(f, "rb") as opened_file:
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/torch/serialization.py", line 768, in _open_file_like
+    return _open_file(name_or_buffer, mode)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/codespace/.python/current/lib/python3.12/site-packages/torch/serialization.py", line 749, in __init__
+    super().__init__(open(name, mode))  # noqa: SIM115
+                     ^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'names/model.pt'

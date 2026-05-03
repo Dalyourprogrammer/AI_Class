@@ -103,3 +103,34 @@ print("\n   Full distribution after 'x' (non-zero):")
 for i in np.argsort(x_row)[::-1]:
     if x_row[i] > 0:
         print(f"   'x' → '{itos[i]}' : {x_row[i]:.4f}")
+
+# ── Name generation ───────────────────────────────────────────────────────────
+print("\n" + "="*60)
+print("GENERATED NAMES")
+print("="*60)
+
+rng = np.random.default_rng(seed=42)
+
+def random_choice(probs):
+    """Sample one index from a probability distribution."""
+    return rng.choice(len(probs), p=probs)
+
+def generate_name():
+    letter = '.'
+    name = ''
+    while True:
+        letter = itos[random_choice(P[stoi[letter]])]
+        if letter == '.':
+            break
+        name += letter
+    return name
+
+generated = []
+while len(generated) < 25:
+    name = generate_name()
+    if len(name) >= 3:
+        generated.append(name)
+
+print()
+for i, name in enumerate(generated, 1):
+    print(f"  {i:2}. {name}")
